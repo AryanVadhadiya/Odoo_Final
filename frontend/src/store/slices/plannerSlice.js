@@ -88,6 +88,22 @@ const addMinutesToTime = (timeString, minutes) => {
   return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
 };
 
+// Helper: normalize start times per day based on current order
+// Earliest time starts at 09:00 and subsequent items follow sequentially by duration
+const normalizeTimesPerDay = (state) => {
+  if (!state.timeline || state.timeline.length === 0) return;
+  const dates = Array.from(new Set(state.timeline.map(it => it.scheduledDate))).filter(Boolean);
+  dates.forEach(date => {
+    // Keep the order as it appears in state.timeline (reflects latest reorder)
+    const dayItems = state.timeline.filter(it => it.scheduledDate === date);
+    let current = '09:00';
+    dayItems.forEach(it => {
+      it.startTime = current;
+      current = addMinutesToTime(current, it.duration || 0);
+    });
+  });
+};
+
 const initialState = {
   basket: [], // Activities available to add to timeline
   timeline: [], // Scheduled activities with date/time
@@ -152,6 +168,7 @@ const plannerSlice = createSlice({
         return;
       }
       
+      // Prepare item, tentative start time
       const newTimelineItem = {
         id: `${activityId}-${Date.now()}`,
         activityId,
@@ -166,10 +183,22 @@ const plannerSlice = createSlice({
         imageUrl: activity.imageUrl
       };
       
-      // Check for time conflicts
+      // Prevent clashes: if conflict, move to next available slot on that date
       const timeline = state.timeline || [];
       if (hasTimeConflict(newTimelineItem, timeline)) {
-        throw new Error('Time conflict detected! This time slot is already occupied.');
+        // find next available slot after latest end on that day
+        const dayItems = timeline.filter(it => it.scheduledDate === date);
+        let latestEnd = '09:00';
+        dayItems.forEach(it => {
+          const end = addMinutesToTime(it.startTime, it.duration || 0);
+          if (end > latestEnd) latestEnd = end;
+        });
+        newTimelineItem.startTime = latestEnd;
+        // If still conflicting (edge case), set error and abort
+        if (hasTimeConflict(newTimelineItem, timeline)) {
+          state.error = 'Time conflict detected. Choose another time.';
+          return;
+        }
       }
       
       if (!state.timeline) state.timeline = [];
@@ -180,6 +209,8 @@ const plannerSlice = createSlice({
         const dateB = new Date(b.scheduledDate + 'T' + b.startTime);
         return dateA - dateB;
       });
+      // Normalize times per day so the list is coherent
+      normalizeTimesPerDay(state);
   },
     removeFromTimeline: (state, action) => {
       const timelineId = action.payload;
@@ -191,6 +222,8 @@ const plannerSlice = createSlice({
       if (!state.timeline) state.timeline = [];
       const [removed] = state.timeline.splice(sourceIndex, 1);
       state.timeline.splice(destinationIndex, 0, removed);
+  // After reordering, normalize times per day so top item gets earliest time
+  normalizeTimesPerDay(state);
     },
     updateTimelineItem: (state, action) => {
       const { timelineId, updates } = action.payload;
@@ -198,22 +231,34 @@ const plannerSlice = createSlice({
       const itemIndex = state.timeline.findIndex(item => item.id === timelineId);
       
       if (itemIndex !== -1) {
-        const updatedItem = { ...state.timeline[itemIndex], ...updates };
-        
-        // Check for time conflicts with other items
+        const before = state.timeline[itemIndex];
+        const updatedItem = { ...before, ...updates };
+
+        // Prevent clashes: if conflict with others, snap to next available slot on that date
         const otherItems = state.timeline.filter(item => item.id !== timelineId);
         if (hasTimeConflict(updatedItem, otherItems)) {
-          throw new Error('Time conflict detected! This time slot is already occupied.');
+          const dayItems = otherItems.filter(it => it.scheduledDate === updatedItem.scheduledDate);
+          let latestEnd = '09:00';
+          dayItems.forEach(it => {
+            const end = addMinutesToTime(it.startTime, it.duration || 0);
+            if (end > latestEnd) latestEnd = end;
+          });
+          updatedItem.startTime = latestEnd;
+          if (hasTimeConflict(updatedItem, otherItems)) {
+            state.error = 'Time conflict detected. Choose another time.';
+            return;
+          }
         }
-        
+
         state.timeline[itemIndex] = updatedItem;
-        
-        // Re-sort timeline
+
+        // Re-sort and normalize times per day
         state.timeline.sort((a, b) => {
           const dateA = new Date(a.scheduledDate + 'T' + a.startTime);
           const dateB = new Date(b.scheduledDate + 'T' + b.startTime);
           return dateA - dateB;
         });
+        normalizeTimesPerDay(state);
       }
   },
     suggestNextTimeSlot: (state, action) => {
