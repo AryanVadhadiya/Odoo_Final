@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Share2, Copy, Download, Star, MapPin, Calendar, DollarSign, Hotel, Activity, Heart } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Share2, Copy, Download, Star, MapPin, Calendar, DollarSign, Hotel, Activity, Heart, Users, Globe, Clock, Tag, Eye, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { itineraryAPI } from '../services/api';
+import { itineraryAPI, tripAPI } from '../services/api';
 
 const PublicItinerary = () => {
   const { publicUrl } = useParams();
+  const navigate = useNavigate();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     const fetchPublicTrip = async () => {
@@ -46,10 +48,19 @@ const PublicItinerary = () => {
     toast.success('PDF download feature coming soon!');
   };
 
-  const copyTrip = () => {
-    // This would redirect to trip creation with pre-filled data
-    toast.success('Redirecting to create trip...');
-    // In a real implementation, you'd redirect to trip creation page
+  const copyTrip = async () => {
+    try {
+      setCopying(true);
+      await tripAPI.copyPublicTrip(publicUrl);
+      toast.success('Trip copied successfully! Redirecting to your trips...');
+      setTimeout(() => {
+        navigate('/trips');
+      }, 1500);
+    } catch (error) {
+      toast.error('Failed to copy trip. Please try again.');
+    } finally {
+      setCopying(false);
+    }
   };
 
   if (loading) {
@@ -70,7 +81,7 @@ const PublicItinerary = () => {
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Itinerary Not Found</h1>
           <p className="text-gray-600 mb-4">{error || 'This itinerary may be private or no longer available.'}</p>
-          <Link to="/" className="btn-primary">Go Home</Link>
+          <Link to="/community" className="btn-primary">Browse Community</Link>
         </div>
       </div>
     );
@@ -92,184 +103,113 @@ const PublicItinerary = () => {
     return trip.destinations?.length || 0;
   };
 
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Link to="/" className="text-xl font-bold text-primary-600">
-                GlobeTrotter
-              </Link>
-            </div>
             <div className="flex items-center space-x-4">
+              <Link to="/community" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">{trip.name}</h1>
+                <p className="text-sm text-gray-600">Public Itinerary</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
               <button
                 onClick={copyToClipboard}
-                className={`inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium ${
-                  copied ? 'bg-green-50 text-green-700 border-green-300' : 'bg-white text-gray-700 hover:bg-gray-50'
+                className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  copied 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                <Copy className="h-4 w-4 mr-2" />
-                {copied ? 'Copied!' : 'Copy Link'}
+                <Share2 className="h-4 w-4 mr-2" />
+                {copied ? 'Copied!' : 'Share'}
               </button>
+              
               <button
-                onClick={downloadPDF}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50"
+                onClick={copyTrip}
+                disabled={copying}
+                className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Download PDF
+                <Copy className="h-4 w-4 mr-2" />
+                {copying ? 'Copying...' : 'Copy Trip'}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Trip Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">{trip.name}</h1>
-                {trip.rating?.overall > 0 && (
-                  <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-full">
-                    <Star className="h-4 w-4 text-yellow-600 fill-current" />
-                    <span className="text-sm font-medium text-yellow-800">
-                      {trip.rating.overall.toFixed(1)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {trip.description && (
-                <p className="text-gray-600 text-lg mb-4">{trip.description}</p>
-              )}
-              
-              {/* Trip Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Duration</p>
-                    <p className="font-medium text-gray-900">{calculateTripDuration()} days</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Destinations</p>
-                    <p className="font-medium text-gray-900">{getDestinationCount()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Budget</p>
-                    <p className="font-medium text-gray-900">
-                      ${getTotalBudget().toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    <p className="font-medium text-gray-900 capitalize">{trip.status}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={copyTrip}
-              className="btn-primary inline-flex items-center"
-            >
-              <Heart className="h-4 w-4 mr-2" />
-              Copy Trip
-            </button>
-          </div>
-        </div>
-
-        {/* Itinerary Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Trip Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Destinations */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Itinerary</h2>
+            {/* Cover Image */}
+            {trip.coverPhoto && (
+              <div className="relative h-64 rounded-xl overflow-hidden">
+                <img 
+                  src={trip.coverPhoto} 
+                  alt={trip.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-20"></div>
               </div>
-              <div className="p-6">
-                <div className="space-y-6">
+            )}
+
+            {/* Trip Description */}
+            {trip.description && (
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="text-xl font-semibold text-gray-900">About This Trip</h2>
+                </div>
+                <div className="card-body">
+                  <p className="text-gray-700 leading-relaxed">{trip.description}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Destinations */}
+            <div className="card">
+              <div className="card-header">
+                <h2 className="text-xl font-semibold text-gray-900">Destinations</h2>
+                <p className="text-sm text-gray-600">{getDestinationCount()} cities to explore</p>
+              </div>
+              <div className="card-body">
+                <div className="space-y-4">
                   {trip.destinations?.map((destination, index) => (
-                    <div key={index} className="border-l-4 border-primary-500 pl-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {destination.city}, {destination.country}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {new Date(destination.arrivalDate).toLocaleDateString()} - {new Date(destination.departureDate).toLocaleDateString()}
-                          </p>
-                          
-                          {/* Hotel Information */}
-                          {destination.hotel?.name && (
-                            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Hotel className="h-4 w-4 text-blue-600" />
-                                <span className="font-medium text-gray-900">Hotel</span>
-                              </div>
-                              <p className="text-sm font-medium text-gray-900">{destination.hotel.name}</p>
-                              {destination.hotel.address && (
-                                <p className="text-sm text-gray-600">{destination.hotel.address}</p>
-                              )}
-                              {destination.hotel.roomType && (
-                                <p className="text-sm text-gray-600">Room: {destination.hotel.roomType}</p>
-                              )}
-                              {destination.hotel.cost > 0 && (
-                                <p className="text-sm text-gray-600">Cost: ${destination.hotel.cost.toLocaleString()}</p>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Destination Rating */}
-                          {destination.rating > 0 && (
-                            <div className="flex items-center gap-1 mt-2">
-                              <div className="flex">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    className={`h-4 w-4 ${
-                                      star <= destination.rating
-                                        ? 'text-yellow-400 fill-current'
-                                        : 'text-gray-300'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-sm text-gray-600 ml-2">
-                                {destination.rating.toFixed(1)}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Destination Review */}
-                          {destination.review && (
-                            <p className="text-sm text-gray-600 mt-2 italic">"{destination.review}"</p>
-                          )}
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">Stop {index + 1}</div>
+                    <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">
+                          {destination.city}, {destination.country}
+                        </h3>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                          <span className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-1" />
+                            {formatDate(destination.arrivalDate)} - {formatDate(destination.departureDate)}
+                          </span>
                           {destination.budget > 0 && (
-                            <div className="text-sm font-medium text-gray-900 mt-1">
-                              ${destination.budget.toLocaleString()}
-                            </div>
+                            <span className="flex items-center">
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              {trip.budget?.currency} {destination.budget.toLocaleString()}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -279,37 +219,42 @@ const PublicItinerary = () => {
               </div>
             </div>
 
-            {/* Trip Reviews */}
-            {trip.rating?.reviews && trip.rating.reviews.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-900">Reviews</h2>
+            {/* Activities */}
+            {trip.activities && trip.activities.length > 0 && (
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="text-xl font-semibold text-gray-900">Planned Activities</h2>
+                  <p className="text-sm text-gray-600">Things to do and see</p>
                 </div>
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {trip.rating.reviews.map((review, index) => (
-                      <div key={index} className="border-b border-gray-100 pb-4 last:border-b-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`h-3 w-3 ${
-                                  star <= review.rating
-                                    ? 'text-yellow-400 fill-current'
-                                    : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm text-gray-600">{review.rating}/5</span>
+                <div className="card-body">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {trip.activities.map((activity, index) => (
+                      <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">{activity.name}</h4>
+                          {activity.cost > 0 && (
+                            <span className="text-sm text-gray-600">
+                              {trip.budget?.currency} {activity.cost}
+                            </span>
+                          )}
                         </div>
-                        {review.review && (
-                          <p className="text-sm text-gray-700">{review.review}</p>
+                        {activity.description && (
+                          <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
                         )}
-                        <p className="text-xs text-gray-500 mt-2">
-                          {new Date(review.createdAt).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          {activity.duration && (
+                            <span className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {activity.duration} min
+                            </span>
+                          )}
+                          {activity.category && (
+                            <span className="flex items-center">
+                              <Tag className="h-3 w-3 mr-1" />
+                              {activity.category}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -320,83 +265,132 @@ const PublicItinerary = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Trip Summary */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Trip Summary</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Start Date</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {new Date(trip.startDate).toLocaleDateString()}
+            {/* Trip Stats */}
+            <div className="card">
+              <div className="card-header">
+                <h3 className="text-lg font-semibold text-gray-900">Trip Overview</h3>
+              </div>
+              <div className="card-body space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Duration</span>
+                  <span className="font-medium">{calculateTripDuration()} days</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Destinations</span>
+                  <span className="font-medium">{getDestinationCount()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Total Budget</span>
+                  <span className="font-medium text-green-600">
+                    {trip.budget?.currency} {getTotalBudget().toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">End Date</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {new Date(trip.endDate).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Duration</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {calculateTripDuration()} days
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Destinations</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {getDestinationCount()}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Total Budget</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    ${getTotalBudget().toLocaleString()}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Status</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    trip.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    trip.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                    trip.status === 'planning' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Budget Breakdown */}
-            {trip.budget?.breakdown && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Breakdown</h3>
-                <div className="space-y-3">
-                  {Object.entries(trip.budget.breakdown).map(([category, amount]) => {
-                    if (amount > 0) {
-                      return (
-                        <div key={category} className="flex justify-between">
-                          <span className="text-sm text-gray-600 capitalize">
-                            {category}
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">
-                            ${amount.toLocaleString()}
-                          </span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })}
+            {/* Trip Creator */}
+            <div className="card">
+              <div className="card-header">
+                <h3 className="text-lg font-semibold text-gray-900">Created By</h3>
+              </div>
+              <div className="card-body">
+                <div className="flex items-center space-x-3">
+                  {trip.user?.profilePicture ? (
+                    <img 
+                      src={trip.user.profilePicture} 
+                      alt={trip.user.firstName} 
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                      <Users className="h-6 w-6 text-gray-600" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {trip.user?.firstName ? `${trip.user.firstName} ${trip.user.lastName}` : 'Traveler'}
+                    </p>
+                    {trip.user?.username && (
+                      <p className="text-sm text-gray-600">@{trip.user.username}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Trip Tags */}
+            {trip.tags && trip.tags.length > 0 && (
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="text-lg font-semibold text-gray-900">Tags</h3>
+                </div>
+                <div className="card-body">
+                  <div className="flex flex-wrap gap-2">
+                    {trip.tags.map((tag, index) => (
+                      <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Tags */}
-            {trip.tags && trip.tags.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
-                <div className="flex flex-wrap gap-2">
-                  {trip.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
-                    >
-                      {tag}
-                    </span>
+            {/* Budget Breakdown */}
+            {trip.budget?.breakdown && (
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="text-lg font-semibold text-gray-900">Budget Breakdown</h3>
+                </div>
+                <div className="card-body space-y-3">
+                  {Object.entries(trip.budget.breakdown).map(([category, amount]) => (
+                    amount > 0 && (
+                      <div key={category} className="flex items-center justify-between">
+                        <span className="text-gray-600 capitalize">{category}</span>
+                        <span className="font-medium">
+                          {trip.budget.currency} {amount.toLocaleString()}
+                        </span>
+                      </div>
+                    )
                   ))}
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Call to Action */}
+        <div className="text-center py-8">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Inspired by this trip?</h2>
+            <p className="text-gray-600 mb-6">
+              Copy this itinerary to your account and customize it for your own adventure!
+            </p>
+            <div className="flex items-center justify-center space-x-4">
+              <button
+                onClick={copyTrip}
+                disabled={copying}
+                className="btn-primary px-8 py-3 text-lg"
+              >
+                <Copy className="h-5 w-5 mr-2" />
+                {copying ? 'Copying...' : 'Copy This Trip'}
+              </button>
+              <Link to="/community" className="btn-secondary px-8 py-3 text-lg">
+                <Globe className="h-5 w-5 mr-2" />
+                Browse More Trips
+              </Link>
+            </div>
           </div>
         </div>
       </div>

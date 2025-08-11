@@ -425,4 +425,44 @@ router.put('/:tripId/destinations/reorder', [
   }
 });
 
+// @route   GET /api/itinerary/public/:publicUrl
+// @desc    Get public itinerary by public URL
+// @access  Public
+router.get('/public/:publicUrl', async (req, res) => {
+  try {
+    const { publicUrl } = req.params;
+
+    const trip = await Trip.findOne({
+      publicUrl,
+      isPublic: true
+    }).populate('user', 'firstName lastName username profilePicture');
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Public itinerary not found'
+      });
+    }
+
+    // Get activities for this trip
+    const activities = await Activity.find({ trip: trip._id })
+      .populate('destination', 'city country')
+      .sort({ date: 1, startTime: 1 });
+
+    res.json({
+      success: true,
+      data: {
+        ...trip.toObject(),
+        activities
+      }
+    });
+  } catch (error) {
+    console.error('Get public itinerary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router; 

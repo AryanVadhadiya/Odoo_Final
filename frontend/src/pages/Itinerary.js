@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, DollarSign, Plus, MapPin, GripVertical, X, Check, List, Clock, Eye, Edit, Trash2, Search } from 'lucide-react';
+import { Calendar, DollarSign, Plus, MapPin, GripVertical, X, Check, List, Clock, Eye, Edit, Trash2, Search, Sparkles, Target, Users, Heart } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 // Removed react-select dropdown for city input
 import { toast } from 'react-hot-toast';
 import { fetchTrip } from '../store/slices/tripSlice';
@@ -12,6 +12,7 @@ import ActivityDiscovery from '../components/common/ActivityDiscovery';
 const Itinerary = () => {
   const dispatch = useDispatch();
   const { tripId } = useParams();
+  const location = useLocation();
   const { currentTrip } = useSelector((state) => state.trips);
   const [destinations, setDestinations] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -26,6 +27,8 @@ const Itinerary = () => {
   const [draggedOverDestination, setDraggedOverDestination] = useState(null);
   const [showActivityDiscovery, setShowActivityDiscovery] = useState(false);
   const [selectedDestinationForActivities, setSelectedDestinationForActivities] = useState(null);
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  const [aiPreferences, setAiPreferences] = useState(null);
   // no dropdown options
   const dragSrcId = useRef(null);
 
@@ -50,6 +53,20 @@ const Itinerary = () => {
     };
     load();
   }, [tripId]);
+
+  // Handle new flow from CitySearch page
+  useEffect(() => {
+    if (location.state?.step === 'planning-complete') {
+      setShowWelcomeMessage(true);
+      setAiPreferences(location.state.aiPreferences);
+      
+      // Show success message
+      toast.success('Welcome to your itinerary! Your AI-planned trip is ready.');
+      
+      // Clear the state to prevent showing again on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const totalSectionsBudget = useMemo(() => destinations.reduce((sum, d) => sum + (Number(d.budget) || 0), 0), [destinations]);
   const tripBudget = currentTrip?.budget?.total || 0;
@@ -280,6 +297,61 @@ const Itinerary = () => {
 
   const activitiesForDest = (dest) => activities.filter((a) => a.destination?.city === dest.city && a.destination?.country === dest.country);
 
+  // Welcome Message Component for AI-Planned Trips
+  const WelcomeMessage = () => (
+    <div className="mb-8">
+      <div className="card bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+        <div className="card-body">
+          <div className="flex items-start space-x-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center text-white">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">🎉 Your AI-Planned Trip is Ready!</h2>
+              <p className="text-gray-700 mb-4">
+                Welcome to your personalized itinerary! Our AI has helped you discover amazing destinations and plan the perfect trip. 
+                You can now add activities, adjust schedules, and fine-tune your adventure.
+              </p>
+              
+              {aiPreferences && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-white rounded-lg p-3 border border-purple-200 text-center">
+                    <div className="text-lg font-bold text-purple-600">{aiPreferences.duration} days</div>
+                    <div className="text-sm text-gray-600">Planned Duration</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-purple-200 text-center">
+                    <div className="text-lg font-bold text-blue-600">{aiPreferences.travelStyle}</div>
+                    <div className="text-sm text-gray-600">Travel Style</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-purple-200 text-center">
+                    <div className="text-lg font-bold text-green-600">{aiPreferences.groupSize}</div>
+                    <div className="text-sm text-gray-600">Group Type</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowWelcomeMessage(false)}
+                  className="btn-primary"
+                >
+                  <Target className="mr-2 h-4 w-4" />
+                  Start Planning Activities
+                </button>
+                <button
+                  onClick={() => setShowWelcomeMessage(false)}
+                  className="btn-secondary"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Calendar View Component
   const CalendarView = () => (
     <div className="space-y-6">
@@ -361,6 +433,9 @@ const Itinerary = () => {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Message for AI-Planned Trips */}
+      {showWelcomeMessage && <WelcomeMessage />}
+      
       <div className="flex items-center justify-between">
         <div>
           <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs font-medium mb-2">

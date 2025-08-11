@@ -57,12 +57,14 @@ export const tripAPI = {
   // So the effective path is '/api/trips/public/public/:publicUrl'
   getPublicTrip: (publicUrl) => api.get(`/trips/public/public/${publicUrl}`),
   getPublicFeed: (params) => api.get('/trips/public/public-feed', { params }),
+  copyPublicTrip: (publicUrl) => api.post(`/trips/copy/${publicUrl}`),
   addCollaborator: (tripId, collaboratorData) => api.post(`/trips/${tripId}/collaborators`, collaboratorData),
 };
 
 // Itinerary API
 export const itineraryAPI = {
   getItinerary: (tripId) => api.get(`/itinerary/${tripId}`),
+  getPublicItinerary: (publicUrl) => api.get(`/itinerary/public/${publicUrl}`),
   addDestination: (tripId, destinationData) => api.post(`/itinerary/${tripId}/destinations`, destinationData),
   updateDestination: (tripId, destinationId, destinationData) => 
     api.put(`/itinerary/${tripId}/destinations/${destinationId}`, destinationData),

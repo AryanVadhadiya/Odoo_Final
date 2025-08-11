@@ -2,69 +2,14 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Trip = require('../models/Trip');
 const Activity = require('../models/Activity');
+const { auth } = require('../middleware/auth'); // Added auth middleware
 
 const router = express.Router();
-
-// @route   GET /api/trips/public/:publicUrl
-// @desc    Get public trip by public URL
-// @access  Public
-router.get('/public/:publicUrl', async (req, res) => {
-  try {
-    const trip = await Trip.findOne({ 
-      publicUrl: req.params.publicUrl,
-      isPublic: true 
-    }).populate('destinations');
-
-    if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: 'Public trip not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: trip
-    });
-  } catch (error) {
-    console.error('Get public trip error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
-
-// @route   GET /api/trips/public/public-feed
-// @desc    Get recent public trips feed
-// @access  Public
-router.get('/public-feed', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit) || 12, 50);
-    const trips = await Trip.find({ isPublic: true })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .select('name description startDate endDate coverPhoto budget status publicUrl user')
-      .populate('user', 'name avatar');
-
-    res.status(200).json({
-      success: true,
-      count: trips.length,
-      data: trips,
-    });
-  } catch (error) {
-    console.error('Get public feed error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
-  }
-});
 
 // @route   GET /api/trips
 // @desc    Get all trips for user
 // @access  Private
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -112,10 +57,36 @@ router.get('/', async (req, res) => {
   }
 });
 
+// @route   GET /api/trips/public-feed
+// @desc    Get recent public trips feed
+// @access  Public
+router.get('/public-feed', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 12, 50);
+    const trips = await Trip.find({ isPublic: true })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('name description startDate endDate coverPhoto budget status publicUrl user')
+      .populate('user', 'name avatar');
+
+    res.status(200).json({
+      success: true,
+      count: trips.length,
+      data: trips,
+    });
+  } catch (error) {
+    console.error('Get public feed error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+});
+
 // @route   GET /api/trips/:id
 // @desc    Get single trip
 // @access  Private
-router.get('/:id', async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id)
       .populate('destinations')
@@ -183,7 +154,7 @@ router.post('/', [
     .optional()
     .isBoolean()
     .withMessage('isPublic must be boolean')
-], async (req, res) => {
+], auth, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -249,7 +220,7 @@ router.put('/:id', [
     .optional()
     .isISO8601()
     .withMessage('End date must be a valid date')
-], async (req, res) => {
+], auth, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -323,7 +294,7 @@ router.put('/:id', [
 // @route   DELETE /api/trips/:id
 // @desc    Delete trip
 // @access  Private
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
 
@@ -409,7 +380,7 @@ router.post('/:id/collaborators', [
   body('role')
     .isIn(['viewer', 'editor', 'admin'])
     .withMessage('Role must be viewer, editor, or admin')
-], async (req, res) => {
+], auth, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -486,7 +457,7 @@ router.patch('/:id/status', [
   body('status')
     .isIn(['planning', 'active', 'completed', 'cancelled'])
     .withMessage('Status must be planning, active, completed, or cancelled')
-], async (req, res) => {
+], auth, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -525,6 +496,61 @@ router.patch('/:id/status', [
     });
   } catch (error) {
     console.error('Update trip status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   POST /api/trips/copy/:publicUrl
+// @desc    Copy a public trip to user's account
+// @access  Private
+router.post('/copy/:publicUrl', auth, async (req, res) => {
+  try {
+    const { publicUrl } = req.params;
+    const userId = req.user.id;
+
+    // Find the public trip
+    const publicTrip = await Trip.findOne({
+      publicUrl,
+      isPublic: true
+    }).populate('destinations');
+
+    if (!publicTrip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Public trip not found'
+      });
+    }
+
+    // Create a new trip based on the public one
+    const newTrip = new Trip({
+      user: userId,
+      name: `${publicTrip.name} (Copy)`,
+      description: publicTrip.description,
+      startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Start in 1 week
+      endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // End in 2 weeks
+      coverPhoto: publicTrip.coverPhoto,
+      budget: publicTrip.budget,
+      tags: publicTrip.tags,
+      isPublic: false, // New trip is private by default
+      destinations: publicTrip.destinations.map(dest => ({
+        ...dest.toObject(),
+        arrivalDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        departureDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      }))
+    });
+
+    await newTrip.save();
+
+    res.json({
+      success: true,
+      data: newTrip,
+      message: 'Trip copied successfully'
+    });
+  } catch (error) {
+    console.error('Copy trip error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

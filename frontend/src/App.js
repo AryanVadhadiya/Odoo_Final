@@ -21,10 +21,12 @@ import TripDetail from './pages/TripDetail';
 import TripCreate from './pages/TripCreate';
 import TripEdit from './pages/TripEdit';
 import Itinerary from './pages/Itinerary';
+import CitySearchPage from './pages/CitySearch';
 import Profile from './pages/Profile';
 import PublicTrip from './pages/PublicTrip';
 import Community from './pages/Community';
 import AdminDashboard from './pages/AdminDashboard';
+import PublicItinerary from './pages/PublicItinerary';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -82,6 +84,7 @@ function App() {
       } />
       <Route path="/trip/:publicUrl" element={<PublicTrip />} />
       <Route path="/public-trip/:publicUrl" element={<PublicTrip />} />
+      <Route path="/itinerary/:publicUrl" element={<PublicItinerary />} />
       <Route path="/admin" element={<AdminDashboard />} />
 
       {/* Protected routes */}
@@ -94,6 +97,7 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="trips" element={<Trips />} />
         <Route path="trips/create" element={<TripCreate />} />
+        <Route path="city-search" element={<CitySearchPage />} />
         <Route path="trips/:tripId" element={<TripDetail />} />
         <Route path="trips/:tripId/edit" element={<TripEdit />} />
         <Route path="trips/:tripId/itinerary" element={<Itinerary />} />

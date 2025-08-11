@@ -56,16 +56,13 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/trips', auth, tripRoutes);
+app.use('/api/trips', tripRoutes);
 app.use('/api/itinerary', auth, itineraryRoutes);
 app.use('/api/users', auth, userRoutes);
 app.use('/api/activities', auth, activityRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/budget', auth, budgetRoutes);
 app.use('/api/admin', adminRoutes);
-
-// Public routes (no auth required)
-app.use('/api/trips/public', tripRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
