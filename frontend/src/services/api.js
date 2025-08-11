@@ -112,20 +112,171 @@ export const budgetAPI = {
   exportBudget: (tripId) => api.get(`/budget/${tripId}/export`),
 };
 
-// Suggestions (Gemini) API placeholder (client-side)
+// Suggestions (Gemini) API - Enhanced with city search and activity discovery
 export const suggestionsAPI = {
-  getTopPlaces: async (cityQuery) => {
+  // Search for cities with comprehensive information
+  searchCities: async (query, filters = {}) => {
     const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
     if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
-    const prompt = `Return a JSON array of top 15 places/activities in ${cityQuery}. Each item must have: title, details (<=200 chars), approxCost (number in USD), rating (0-5), timings (string).`;
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-    });
-    const data = await resp.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    try { return JSON.parse(text); } catch { return []; }
+    
+    const { country, region, costRange, popularity } = filters;
+    let prompt = `Search for cities matching "${query}" and return a JSON array of 8-12 cities. `;
+    
+    if (country) prompt += `Focus on ${country}. `;
+    if (region) prompt += `Include cities from ${region} region. `;
+    if (costRange) prompt += `Consider ${costRange} cost range. `;
+    if (popularity) prompt += `Include ${popularity} popularity level cities. `;
+    
+    prompt += `Each city must have: name, country, region, costIndex (1-10, 1=very cheap, 10=very expensive), popularity (1-10, 1=hidden gem, 10=very popular), description (<=150 chars), bestTimeToVisit (string), avgDailyCost (number in USD), climate (string), highlights (array of 3-5 attractions), imageUrl (placeholder URL).`;
+    
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }] 
+        }),
+      });
+      
+      const data = await resp.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('City search error:', error);
+      return [];
+    }
+  },
+
+  // Get popular cities for recommendations
+  getPopularCities: async (limit = 10, category = 'general') => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    
+    const prompt = `Return a JSON array of ${limit} popular cities for ${category} travel. Each city must have: name, country, region, costIndex (1-10), popularity (1-10), description (<=150 chars), bestTimeToVisit (string), avgDailyCost (USD), climate (string), highlights (array of 3-5 attractions), imageUrl (placeholder URL), whyVisit (<=100 chars).`;
+    
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }] 
+        }),
+      });
+      
+      const data = await resp.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Popular cities error:', error);
+      return [];
+    }
+  },
+
+  // Discover activities for a specific city
+  discoverActivities: async (cityName, filters = {}) => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    
+    const { type, costRange, duration, interests } = filters;
+    let prompt = `Discover activities in ${cityName} and return a JSON array of 8-12 activities. `;
+    
+    if (type) prompt += `Focus on ${type} activities. `;
+    if (costRange) prompt += `Consider ${costRange} cost range. `;
+    if (duration) prompt += `Include ${duration} duration activities. `;
+    if (interests) prompt += `Cater to ${interests} interests. `;
+    
+    prompt += `Each activity must have: title, description (<=200 chars), type (sightseeing/food/adventure/culture/shopping/relaxation/transport/other), cost (number in USD), duration (number in minutes), rating (0-5), location (string), bestTime (string), highlights (array of 3 features), imageUrl (placeholder URL), difficulty (easy/medium/hard), groupSize (solo/couple/family/group).`;
+    
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }] 
+        }),
+      });
+      
+      const data = await resp.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Activity discovery error:', error);
+      return [];
+    }
+  },
+
+  // Get activity categories and types
+  getActivityCategories: async () => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    
+    const prompt = `Return a JSON array of activity categories for travel planning. Each category must have: name, description (<=100 chars), icon (emoji), subcategories (array of 3-5 types), avgCost (number in USD), avgDuration (number in minutes), bestFor (array of traveler types).`;
+    
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }] 
+        }),
+      });
+      
+      const data = await resp.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Activity categories error:', error);
+      return [];
+    }
+  },
+
+  // Get travel recommendations based on preferences
+  getTravelRecommendations: async (preferences = {}) => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    
+    const { budget, duration, interests, season, groupType } = preferences;
+    let prompt = `Provide travel recommendations based on preferences and return a JSON array of 5-8 destinations. `;
+    
+    if (budget) prompt += `Budget: ${budget}. `;
+    if (duration) prompt += `Duration: ${duration}. `;
+    if (interests) prompt += `Interests: ${interests}. `;
+    if (season) prompt += `Season: ${season}. `;
+    if (groupType) prompt += `Group type: ${groupType}. `;
+    
+    prompt += `Each destination must have: name, country, region, description (<=150 chars), bestTimeToVisit (string), avgDailyCost (USD), highlights (array of 3-5 attractions), whyRecommended (<=100 chars), imageUrl (placeholder URL).`;
+    
+    try {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }] 
+        }),
+      });
+      
+      const data = await resp.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Travel recommendations error:', error);
+      return [];
+    }
+  },
+
+  // Legacy method for backward compatibility
+  getTopPlaces: async (cityQuery) => {
+    return this.discoverActivities(cityQuery);
   },
 };
 

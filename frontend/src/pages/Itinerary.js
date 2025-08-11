@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, DollarSign, Plus, MapPin, GripVertical, X, Check, List, Clock, Eye, Edit, Trash2 } from 'lucide-react';
+import { Calendar, DollarSign, Plus, MapPin, GripVertical, X, Check, List, Clock, Eye, Edit, Trash2, Search } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 // Removed react-select dropdown for city input
 import { toast } from 'react-hot-toast';
 import { fetchTrip } from '../store/slices/tripSlice';
 import { itineraryAPI, activityAPI, cityAPI } from '../services/api';
+import CitySearch from '../components/common/CitySearch';
+import ActivityDiscovery from '../components/common/ActivityDiscovery';
 
 const Itinerary = () => {
   const dispatch = useDispatch();
@@ -22,6 +24,8 @@ const Itinerary = () => {
   const [editingActivity, setEditingActivity] = useState(null);
   const [draggedActivity, setDraggedActivity] = useState(null);
   const [draggedOverDestination, setDraggedOverDestination] = useState(null);
+  const [showActivityDiscovery, setShowActivityDiscovery] = useState(false);
+  const [selectedDestinationForActivities, setSelectedDestinationForActivities] = useState(null);
   // no dropdown options
   const dragSrcId = useRef(null);
 
@@ -85,6 +89,11 @@ const Itinerary = () => {
   }, [currentTrip, activities, destinations]);
 
   const onSearchCities = async () => {};
+
+  const handleCitySelect = (city) => {
+    setNewCity(`${city.name}, ${city.country}`);
+    setSectionBudget(city.avgDailyCost?.toString() || '');
+  };
 
   const addDestination = async () => {
     if (!newCity || !arrival || !departure) return;
@@ -254,6 +263,21 @@ const Itinerary = () => {
     }
   };
 
+  const handleActivityDiscovery = (destination) => {
+    setSelectedDestinationForActivities(destination);
+    setShowActivityDiscovery(true);
+  };
+
+  const handleActivitySelect = (activity) => {
+    if (selectedDestinationForActivities) {
+      addActivity(selectedDestinationForActivities, {
+        ...activity,
+        date: selectedDestinationForActivities.arrivalDate,
+        location: { name: activity.location || `${selectedDestinationForActivities.city}, ${selectedDestinationForActivities.country}` }
+      });
+    }
+  };
+
   const activitiesForDest = (dest) => activities.filter((a) => a.destination?.city === dest.city && a.destination?.country === dest.country);
 
   // Calendar View Component
@@ -392,29 +416,46 @@ const Itinerary = () => {
                   <Plus className="h-4 w-4 mr-2" /> Add City (Stop)
                 </button>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">City (City, Country)</label>
-                    <input className="input" placeholder="e.g., Rome, Italy" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
-                  </div>
+                <div className="space-y-4">
+                  {/* City Search */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Arrival</label>
-                    <input type="date" className="input" min={currentTrip?.startDate?.slice(0,10)} max={currentTrip?.endDate?.slice(0,10)} value={arrival} onChange={(e) => setArrival(e.target.value)} />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Search for City</label>
+                    <CitySearch
+                      onCitySelect={handleCitySelect}
+                      placeholder="Search for cities to add to your itinerary..."
+                      showFilters={true}
+                      maxResults={6}
+                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Departure</label>
-                    <input type="date" className="input" min={arrival || currentTrip?.startDate?.slice(0,10)} max={currentTrip?.endDate?.slice(0,10)} value={departure} onChange={(e) => setDeparture(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Budget</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input type="number" className="input pl-9" min="0" value={sectionBudget} onChange={(e) => setSectionBudget(e.target.value)} />
+                  
+                  {/* Manual Input Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">City (City, Country)</label>
+                      <input className="input" placeholder="e.g., Rome, Italy" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Arrival</label>
+                      <input type="date" className="input" min={currentTrip?.startDate?.slice(0,10)} max={currentTrip?.endDate?.slice(0,10)} value={arrival} onChange={(e) => setArrival(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Departure</label>
+                      <input type="date" className="input" min={arrival || currentTrip?.startDate?.slice(0,10)} max={currentTrip?.endDate?.slice(0,10)} value={departure} onChange={(e) => setDeparture(e.target.value)} />
                     </div>
                   </div>
-                  <div className="flex gap-2 md:col-span-4 justify-end">
-                    <button className="btn-secondary inline-flex items-center" onClick={() => { setIsAdding(false); setNewCity(null); }}><X className="h-4 w-4 mr-2"/>Cancel</button>
-                    <button className="btn-primary inline-flex items-center" onClick={addDestination}><Check className="h-4 w-4 mr-2"/>Add</button>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Budget</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input type="number" className="input pl-9" min="0" value={sectionBudget} onChange={(e) => setSectionBudget(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button className="btn-secondary inline-flex items-center" onClick={() => { setIsAdding(false); setNewCity(null); }}><X className="h-4 w-4 mr-2"/>Cancel</button>
+                      <button className="btn-primary inline-flex items-center" onClick={addDestination}><Check className="h-4 w-4 mr-2"/>Add</button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -467,7 +508,16 @@ const Itinerary = () => {
 
                     {/* Activities for this destination */}
                     <div className="mt-4">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Activities</div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-900">Activities</div>
+                        <button
+                          onClick={() => handleActivityDiscovery(d)}
+                          className="text-sm text-primary-600 hover:text-primary-500 flex items-center"
+                        >
+                          <Search className="h-4 w-4 mr-1" />
+                          Discover Activities
+                        </button>
+                      </div>
                       <div className="space-y-2">
                         {activitiesForDest(d).map((a) => (
                           <div 
@@ -592,6 +642,18 @@ const Itinerary = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Activity Discovery Modal */}
+      {showActivityDiscovery && selectedDestinationForActivities && (
+        <ActivityDiscovery
+          cityName={selectedDestinationForActivities.city}
+          onActivitySelect={handleActivitySelect}
+          onClose={() => {
+            setShowActivityDiscovery(false);
+            setSelectedDestinationForActivities(null);
+          }}
+        />
       )}
     </div>
   );
