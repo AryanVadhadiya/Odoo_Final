@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Calendar, Search, Plus, Edit, Eye, Trash2, MoreVertical } from 'lucide-react';
+import { MapPin, Calendar, Search, Plus, Edit, Eye, Trash2, Play, CheckCircle, RotateCcw } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchTrips } from '../store/slices/tripSlice';
+import { fetchTrips, deleteTrip } from '../store/slices/tripSlice';
 import { tripAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -14,7 +14,7 @@ const Trips = () => {
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
   const dispatch = useDispatch();
-  const { trips, loading } = useSelector((state) => state.trips);
+  const { trips, loading, deleteLoading } = useSelector((state) => state.trips);
 
   useEffect(() => {
     if (!trips || trips.length === 0) {
@@ -71,11 +71,10 @@ const Trips = () => {
   const handleDeleteTrip = async (tripId) => {
     if (window.confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
       try {
-        await tripAPI.deleteTrip(tripId);
-        dispatch(fetchTrips({ limit: 50 }));
+        await dispatch(deleteTrip(tripId)).unwrap();
         toast.success('Trip deleted successfully');
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to delete trip');
+        toast.error(error || 'Failed to delete trip');
       }
     }
   };
@@ -92,9 +91,45 @@ const Trips = () => {
     return <span className={`badge ${config.className}`}>{config.label}</span>;
   };
 
-  const getStatusOptions = (currentStatus) => {
-    const allStatuses = ['planning', 'active', 'completed', 'cancelled'];
-    return allStatuses.filter(status => status !== currentStatus);
+  const getStatusButton = (trip) => {
+    const { status, _id } = trip;
+    
+    if (status === 'planning') {
+      return (
+        <button
+          onClick={() => handleStatusUpdate(_id, 'active')}
+          disabled={updatingStatus === _id}
+          className="btn-success btn-sm inline-flex items-center"
+        >
+          <Play className="h-4 w-4 mr-1" />
+          Start Trip
+        </button>
+      );
+    } else if (status === 'active') {
+      return (
+        <button
+          onClick={() => handleStatusUpdate(_id, 'completed')}
+          disabled={updatingStatus === _id}
+          className="btn-primary btn-sm inline-flex items-center"
+        >
+          <CheckCircle className="h-4 w-4 mr-1" />
+          Complete Trip
+        </button>
+      );
+    } else if (status === 'completed') {
+      return (
+        <button
+          onClick={() => handleStatusUpdate(_id, 'planning')}
+          disabled={updatingStatus === _id}
+          className="btn-secondary btn-sm inline-flex items-center"
+        >
+          <RotateCcw className="h-4 w-4 mr-1" />
+          Reactivate Trip
+        </button>
+      );
+    }
+    
+    return null;
   };
 
   const TripCard = ({ trip }) => (
@@ -104,23 +139,6 @@ const Trips = () => {
           <h3 className="text-lg font-semibold text-gray-900">{trip.name}</h3>
           <div className="flex items-center gap-2">
             {getStatusBadge(trip.status)}
-            <div className="relative">
-              <select
-                className="text-xs border rounded px-2 py-1 bg-white"
-                value=""
-                onChange={(e) => e.target.value && handleStatusUpdate(trip._id, e.target.value)}
-                disabled={updatingStatus === trip._id}
-              >
-                <option value="">Change Status</option>
-                {getStatusOptions(trip.status).map(status => (
-                  <option key={status} value={status}>
-                    {status === 'planning' ? 'Upcoming' : 
-                     status === 'active' ? 'Ongoing' : 
-                     status === 'completed' ? 'Completed' : 'Cancelled'}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
         
@@ -141,22 +159,29 @@ const Trips = () => {
           )}
         </div>
         
-        <div className="flex space-x-2">
-          <Link to={`/trips/${trip._id}`} className="btn-secondary btn-sm flex-1 text-center flex items-center justify-center">
-            <Eye className="h-4 w-4 mr-1" />
-            View
-          </Link>
-          <Link to={`/trips/${trip._id}/edit`} className="btn-secondary btn-sm flex items-center justify-center">
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
-          </Link>
-          <button 
-            onClick={() => handleDeleteTrip(trip._id)}
-            className="btn-danger btn-sm flex items-center justify-center"
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete
-          </button>
+        <div className="space-y-2">
+          {/* Status update button */}
+          {getStatusButton(trip)}
+          
+          {/* Action buttons */}
+          <div className="flex space-x-2">
+            <Link to={`/trips/${trip._id}`} className="btn-secondary btn-sm flex-1 text-center flex items-center justify-center">
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Link>
+            <Link to={`/trips/${trip._id}/edit`} className="btn-secondary btn-sm flex items-center justify-center">
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Link>
+            <button 
+              onClick={() => handleDeleteTrip(trip._id)}
+              disabled={deleteLoading}
+              className="btn-danger btn-sm flex items-center justify-center"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>
