@@ -1,8 +1,46 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, MapPin, Calendar, Search } from 'lucide-react';
+import { Plus, MapPin, Calendar, Search, Filter } from 'lucide-react';
 
 const Trips = () => {
+  const [search, setSearch] = useState('');
+  const [groupBy, setGroupBy] = useState('none');
+  const [sortBy, setSortBy] = useState('recent');
+
+  // Dummy data for now; can be replaced with store data
+  const allTrips = useMemo(
+    () => [
+      { id: '1', name: 'Paris Adventure', status: 'ongoing', start: '2025-08-10', end: '2025-08-17', desc: 'A week-long exploration of the City of Light', destinations: 1 },
+      { id: '2', name: 'Tokyo Discovery', status: 'completed', start: '2025-06-02', end: '2025-06-10', desc: 'Tradition and technology in harmony', destinations: 1 },
+      { id: '3', name: 'New York City', status: 'upcoming', start: '2025-09-05', end: '2025-09-12', desc: 'Exploring Manhattan and beyond', destinations: 1 },
+      { id: '4', name: 'Goa Getaway', status: 'ongoing', start: '2025-08-12', end: '2025-08-15', desc: 'Beaches and sunsets', destinations: 2 },
+      { id: '5', name: 'London Highlights', status: 'upcoming', start: '2025-10-01', end: '2025-10-07', desc: 'Museums and markets', destinations: 2 },
+    ],
+    []
+  );
+
+  const filteredTrips = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = !q
+      ? allTrips
+      : allTrips.filter(
+          (t) => t.name.toLowerCase().includes(q) || (t.desc || '').toLowerCase().includes(q)
+        );
+    if (sortBy === 'recent') list = [...list].sort((a, b) => new Date(b.start) - new Date(a.start));
+    if (sortBy === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }, [allTrips, search, sortBy]);
+
+  const grouped = useMemo(() => {
+    const mapping = { ongoing: [], upcoming: [], completed: [] };
+    filteredTrips.forEach((t) => {
+      if (t.status === 'ongoing') mapping.ongoing.push(t);
+      else if (t.status === 'upcoming') mapping.upcoming.push(t);
+      else mapping.completed.push(t);
+    });
+    return mapping;
+  }, [filteredTrips]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -20,136 +58,133 @@ const Trips = () => {
         </Link>
       </div>
 
-      {/* Search and filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search trips..."
-                className="input pl-10"
-              />
-            </div>
+      {/* Controls */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-stretch gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search trips..."
+              className="input pl-10 h-full"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          <select className="input md:w-48">
-            <option value="">All Status</option>
-            <option value="planning">Planning</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
+          <select className="input md:w-48" value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+            <option value="none">Group by: None</option>
+            <option value="destination">Destination</option>
+            <option value="month">Month</option>
           </select>
+          <select className="input md:w-48" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="recent">Sort by: Most Recent</option>
+            <option value="name">Sort by: Name</option>
+          </select>
+          <Link to="/trips/create" className="btn-primary inline-flex items-center">
+            <Plus className="h-4 w-4 mr-2" />
+            New Trip
+          </Link>
         </div>
       </div>
 
-      {/* Trips grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Sample trip cards */}
-        <div className="card hover:shadow-medium transition-shadow duration-200">
+      {/* Trip groups */}
+      <div className="space-y-6">
+        {/* Ongoing */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-gray-900">Ongoing</h2>
+          </div>
           <div className="card-body">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Paris Adventure</h3>
-              <span className="badge badge-primary">Planning</span>
-            </div>
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-600">
-                <Calendar className="h-4 w-4 mr-2" />
-                Mar 15 - Mar 22, 2024
+            {grouped.ongoing.length === 0 ? (
+              <div className="text-gray-600">No ongoing trips.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {grouped.ongoing.map((t) => (
+                  <div key={t.id} className="card hover:shadow-medium transition-shadow duration-200">
+                    <div className="card-body">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
+                        <span className="badge badge-warning">Ongoing</span>
+                      </div>
+                      <div className="space-y-2 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.start).toLocaleDateString()} - {new Date(t.end).toLocaleDateString()}</div>
+                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{t.destinations} destination{t.destinations > 1 ? 's' : ''}</div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link to={`/trips/${t.id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
+                        <Link to={`/trips/${t.id}/edit`} className="btn-secondary btn-sm">Edit</Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-2" />
-                1 destination
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm mb-4">
-              A week-long exploration of the City of Light
-            </p>
-            <div className="flex space-x-2">
-              <Link
-                to="/trips/1"
-                className="btn-secondary btn-sm flex-1 text-center"
-              >
-                View Details
-              </Link>
-              <Link
-                to="/trips/1/edit"
-                className="btn-secondary btn-sm"
-              >
-                Edit
-              </Link>
-            </div>
+            )}
           </div>
         </div>
 
-        <div className="card hover:shadow-medium transition-shadow duration-200">
+        {/* Upcoming */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-gray-900">Upcoming</h2>
+          </div>
           <div className="card-body">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Tokyo Discovery</h3>
-              <span className="badge badge-success">Completed</span>
-            </div>
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-600">
-                <Calendar className="h-4 w-4 mr-2" />
-                Apr 10 - Apr 18, 2024
+            {grouped.upcoming.length === 0 ? (
+              <div className="text-gray-600">No upcoming trips.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {grouped.upcoming.map((t) => (
+                  <div key={t.id} className="card hover:shadow-medium transition-shadow duration-200">
+                    <div className="card-body">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
+                        <span className="badge badge-primary">Upcoming</span>
+                      </div>
+                      <div className="space-y-2 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.start).toLocaleDateString()} - {new Date(t.end).toLocaleDateString()}</div>
+                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{t.destinations} destination{t.destinations > 1 ? 's' : ''}</div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link to={`/trips/${t.id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
+                        <Link to={`/trips/${t.id}/edit`} className="btn-secondary btn-sm">Edit</Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-2" />
-                1 destination
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm mb-4">
-              Exploring the fascinating blend of tradition and technology
-            </p>
-            <div className="flex space-x-2">
-              <Link
-                to="/trips/2"
-                className="btn-secondary btn-sm flex-1 text-center"
-              >
-                View Details
-              </Link>
-              <Link
-                to="/trips/2/edit"
-                className="btn-secondary btn-sm"
-              >
-                Edit
-              </Link>
-            </div>
+            )}
           </div>
         </div>
 
-        <div className="card hover:shadow-medium transition-shadow duration-200">
+        {/* Completed */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-gray-900">Completed</h2>
+          </div>
           <div className="card-body">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">New York City</h3>
-              <span className="badge badge-warning">Active</span>
-            </div>
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-600">
-                <Calendar className="h-4 w-4 mr-2" />
-                May 5 - May 12, 2024
+            {grouped.completed.length === 0 ? (
+              <div className="text-gray-600">No completed trips.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {grouped.completed.map((t) => (
+                  <div key={t.id} className="card hover:shadow-medium transition-shadow duration-200">
+                    <div className="card-body">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
+                        <span className="badge badge-success">Completed</span>
+                      </div>
+                      <div className="space-y-2 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.start).toLocaleDateString()} - {new Date(t.end).toLocaleDateString()}</div>
+                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{t.destinations} destination{t.destinations > 1 ? 's' : ''}</div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link to={`/trips/${t.id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
+                        <Link to={`/trips/${t.id}/edit`} className="btn-secondary btn-sm">Edit</Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-2" />
-                1 destination
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm mb-4">
-              The city that never sleeps - exploring Manhattan
-            </p>
-            <div className="flex space-x-2">
-              <Link
-                to="/trips/3"
-                className="btn-secondary btn-sm flex-1 text-center"
-              >
-                View Details
-              </Link>
-              <Link
-                to="/trips/3/edit"
-                className="btn-secondary btn-sm"
-              >
-                Edit
-              </Link>
-            </div>
+            )}
           </div>
         </div>
       </div>

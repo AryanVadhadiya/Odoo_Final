@@ -1,128 +1,151 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { MapPin, Calendar, Clock, Plus, Edit, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Calendar, DollarSign, Plus, MapPin } from 'lucide-react';
+
+const defaultSections = [
+  {
+    id: 'sec-1',
+    title: 'Arrival and Check-in',
+    details: 'Arrive at destination, transfer to hotel, relax and explore nearby.',
+    dateRange: { start: '2025-08-12', end: '2025-08-12' },
+    budget: 120,
+  },
+  {
+    id: 'sec-2',
+    title: 'City Tour',
+    details: 'Guided tour of key landmarks and local cuisine tasting.',
+    dateRange: { start: '2025-08-13', end: '2025-08-13' },
+    budget: 200,
+  },
+  {
+    id: 'sec-3',
+    title: 'Free Day / Activities',
+    details: 'Choose from museums, parks, or shopping districts.',
+    dateRange: { start: '2025-08-14', end: '2025-08-14' },
+    budget: 80,
+  },
+];
 
 const Itinerary = () => {
-  const { tripId } = useParams();
-  const [destinations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [sections, setSections] = useState(defaultSections);
 
-  useEffect(() => {
-    // TODO: Fetch itinerary data
-    setLoading(false);
-  }, [tripId]);
+  const totalBudget = useMemo(
+    () => sections.reduce((sum, s) => sum + (Number(s.budget) || 0), 0),
+    [sections]
+  );
 
-  const handleAddDestination = () => {
-    setShowAddForm(true);
+  const addSection = () => {
+    const nextIndex = sections.length + 1;
+    setSections([
+      ...sections,
+      {
+        id: `sec-${nextIndex}`,
+        title: `New Section ${nextIndex}`,
+        details: 'Add details for this part of your trip...',
+        dateRange: { start: '', end: '' },
+        budget: 0,
+      },
+    ]);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  const updateSection = (id, patch) => {
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Itinerary</h1>
-        <button
-          onClick={handleAddDestination}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Destination
-        </button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs font-medium mb-2">
+            <MapPin className="h-3.5 w-3.5 mr-1.5" />
+            Itinerary
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Your Trip Itinerary</h1>
+          <p className="text-gray-600">Organize your trip into clear sections with dates and budget.</p>
+        </div>
+        <div className="text-right">
+          <div className="text-sm text-gray-600">Estimated Total Budget</div>
+          <div className="text-xl font-semibold text-primary-700">${totalBudget.toFixed(2)}</div>
+        </div>
       </div>
 
-      {destinations.length === 0 ? (
-        <div className="text-center py-12">
-          <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No destinations</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Get started by adding your first destination to your itinerary.
-          </p>
-          <div className="mt-6">
-            <button
-              onClick={handleAddDestination}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Destination
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {destinations.map((destination, index) => (
-            <div
-              key={destination.id}
-              className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm"
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <span className="inline-flex items-center justify-center w-6 h-6 bg-indigo-100 text-indigo-600 text-xs font-medium rounded-full mr-3">
-                      {index + 1}
-                    </span>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {destination.city}, {destination.country}
-                    </h3>
-                  </div>
-                  <div className="ml-9 space-y-2">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {destination.startDate} - {destination.endDate}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Clock className="w-4 h-4 mr-2" />
-                      {destination.duration} days
-                    </div>
-                    {destination.notes && (
-                      <p className="text-sm text-gray-600">{destination.notes}</p>
-                    )}
-                  </div>
+      {/* Sections list */}
+      <div className="space-y-4">
+        {sections.map((s) => (
+          <div key={s.id} className="card">
+            <div className="card-body">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
+                {/* Title + details */}
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Section Title</label>
+                  <input
+                    className="input"
+                    placeholder="e.g., Day 1 - Arrival and Check-in"
+                    value={s.title}
+                    onChange={(e) => updateSection(s.id, { title: e.target.value })}
+                  />
+                  <label className="block text-sm font-medium text-gray-700 mt-4 mb-1">Details</label>
+                  <textarea
+                    className="input"
+                    rows={3}
+                    placeholder="Add details of what you plan to do, where to go, notes, etc."
+                    value={s.details}
+                    onChange={(e) => updateSection(s.id, { details: e.target.value })}
+                  />
                 </div>
-                <div className="flex space-x-2">
-                  <button className="p-2 text-gray-400 hover:text-gray-600">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-red-600">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Add Destination Modal would go here */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Add Destination
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                This feature is coming soon!
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-                >
-                  Close
-                </button>
+                {/* Date range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="date"
+                        className="input pl-9"
+                        value={s.dateRange.start}
+                        onChange={(e) => updateSection(s.id, { dateRange: { ...s.dateRange, start: e.target.value } })}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="date"
+                        className="input pl-9"
+                        min={s.dateRange.start || undefined}
+                        value={s.dateRange.end}
+                        onChange={(e) => updateSection(s.id, { dateRange: { ...s.dateRange, end: e.target.value } })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Budget */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Budget</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="number"
+                      className="input pl-9"
+                      placeholder="0.00"
+                      value={s.budget}
+                      onChange={(e) => updateSection(s.id, { budget: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={addSection} className="btn-primary inline-flex items-center">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Section
+        </button>
+      </div>
     </div>
   );
 };

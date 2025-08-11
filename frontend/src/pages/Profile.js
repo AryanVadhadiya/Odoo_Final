@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import { updateProfile, clearError } from '../store/slices/authSlice';
 import { User, Mail, Calendar, MapPin, Edit, Save, X } from 'lucide-react';
+import { fetchTrips } from '../store/slices/tripSlice';
 
 const Profile = () => {
   const dispatch = useDispatch();
   const { user, profileLoading, profileError } = useSelector((state) => state.auth);
+  const { trips, loading: tripsLoading } = useSelector((state) => state.trips);
   const [isEditing, setIsEditing] = useState(false);
 
   const {
@@ -40,6 +42,20 @@ const Profile = () => {
     dispatch(clearError());
   };
 
+  useEffect(() => {
+    // Load trips for profile listings if not present
+    if (!trips || trips.length === 0) {
+      dispatch(fetchTrips({ limit: 50 }));
+    }
+  }, [dispatch]);
+
+  const { preplannedTrips, previousTrips } = useMemo(() => {
+    const list = Array.isArray(trips) ? trips : [];
+    const preplanned = list.filter((t) => t.status === 'planning' || t.status === 'active');
+    const previous = list.filter((t) => t.status === 'completed');
+    return { preplannedTrips: preplanned, previousTrips: previous };
+  }, [trips]);
+
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -49,7 +65,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="bg-white shadow rounded-lg">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
@@ -158,10 +174,11 @@ const Profile = () => {
             </form>
           ) : (
             <div className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center">
-                  <User className="w-10 h-10 text-indigo-600" />
-                </div>
+              <div className="flex items-center gap-4">
+                <img
+                  src={user?.avatarUrl || 'https://i.pravatar.cc/120?img=12'}
+                  alt="Profile"
+                  className="w-20 h-20 rounded-full object-cover border border-white shadow"/>
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
                   <p className="text-gray-600">{user.email}</p>
@@ -206,6 +223,83 @@ const Profile = () => {
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Trip lists */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Preplanned Trips */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Preplanned Trips</h3>
+          </div>
+          <div className="card-body">
+            {tripsLoading ? (
+              <div className="grid grid-cols-1 gap-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-20 rounded-lg bg-gray-100 animate-pulse"/>
+                ))}
+              </div>
+            ) : preplannedTrips.length === 0 ? (
+              <p className="text-gray-600">No preplanned trips yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {preplannedTrips.map((t) => (
+                  <div key={t._id} className="border border-gray-200 rounded-xl p-4 bg-white/80">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">{t.name}</div>
+                        <div className="mt-1 text-sm text-gray-600 flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div>
+                        <a href={`/trips/${t._id}`} className="btn-secondary btn-sm">View</a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Previous Trips */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">Previous Trips</h3>
+          </div>
+          <div className="card-body">
+            {tripsLoading ? (
+              <div className="grid grid-cols-1 gap-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-20 rounded-lg bg-gray-100 animate-pulse"/>
+                ))}
+              </div>
+            ) : previousTrips.length === 0 ? (
+              <p className="text-gray-600">No previous trips.</p>
+            ) : (
+              <div className="space-y-4">
+                {previousTrips.map((t) => (
+                  <div key={t._id} className="border border-gray-200 rounded-xl p-4 bg-white/80">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">{t.name}</div>
+                        <div className="mt-1 text-sm text-gray-600 flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div>
+                        <a href={`/trips/${t._id}`} className="btn-secondary btn-sm">View</a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
