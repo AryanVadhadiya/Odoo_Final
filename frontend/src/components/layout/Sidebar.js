@@ -27,6 +27,7 @@ const Sidebar = () => {
     { name: 'My Trips', href: '/trips', icon: Map },
     { name: 'Create Trip', href: '/trips/create', icon: Plus },
     { name: 'Trip Planner', href: '/planner', icon: ClipboardList },
+    { name: 'Budget Overview', href: '/budget', icon: BarChart3 },
     { name: 'Search Cities', href: '/cities', icon: Search },
     { name: 'Profile', href: '/profile', icon: User },
   ];

@@ -60,20 +60,14 @@ export const tripAPI = {
 export const itineraryAPI = {
   getItinerary: (tripId) => api.get(`/itinerary/${tripId}`),
   addDestination: (tripId, destinationData) => api.post(`/itinerary/${tripId}/destinations`, destinationData),
-  updateDestination: (tripId, destinationId, destinationData) => 
-    api.put(`/itinerary/${tripId}/destinations/${destinationId}`, destinationData),
-  deleteDestination: (tripId, destinationId) => 
-    api.delete(`/itinerary/${tripId}/destinations/${destinationId}`),
-  reorderDestinations: (tripId, destinationIds) => 
-    api.put(`/itinerary/${tripId}/destinations/reorder`, { destinationIds }),
+  updateDestination: (tripId, destinationId, destinationData) => api.put(`/itinerary/${tripId}/destinations/${destinationId}`, destinationData),
+  deleteDestination: (tripId, destinationId) => api.delete(`/itinerary/${tripId}/destinations/${destinationId}`),
+  reorderDestinations: (tripId, destinationIds) => api.put(`/itinerary/${tripId}/destinations/reorder`, { destinationIds }),
   getBasket: (tripId) => api.get(`/itinerary/${tripId}/basket`),
   updateBasket: (tripId, activityIds) => api.put(`/itinerary/${tripId}/basket`, { activityIds }),
-  reorderDayActivities: (tripId, date, activityIds) => 
-    api.put(`/itinerary/${tripId}/days/${date}/reorder`, { activityIds }),
-  addActivityToDay: (tripId, date, activityId) => 
-    api.post(`/itinerary/${tripId}/days/${date}/add`, { activityId }),
-  removeActivityFromDay: (tripId, date, activityId) => 
-    api.delete(`/itinerary/${tripId}/days/${date}/remove/${activityId}`),
+  reorderDayActivities: (tripId, date, activityIds) => api.put(`/itinerary/${tripId}/days/${date}/reorder`, { activityIds }),
+  addActivityToDay: (tripId, date, activityId) => api.post(`/itinerary/${tripId}/days/${date}/add`, { activityId }),
+  removeActivityFromDay: (tripId, date, activityId) => api.delete(`/itinerary/${tripId}/days/${date}/remove/${activityId}`),
 };
 
 // Activity API
@@ -94,8 +88,7 @@ export const cityAPI = {
   getPopularCities: (limit) => api.get('/cities/popular', { params: { limit } }),
   getCountries: () => api.get('/cities/countries'),
   getClimates: () => api.get('/cities/climates'),
-  getNearbyCities: (lat, lng, radius, limit) => 
-    api.get('/cities/nearby', { params: { lat, lng, radius, limit } }),
+  getNearbyCities: (lat, lng, radius, limit) => api.get('/cities/nearby', { params: { lat, lng, radius, limit } }),
   aiSearchCity: (cityName) => api.post('/cities/ai-search', { cityName }),
 };
 
@@ -113,13 +106,6 @@ export const userAPI = {
 export const budgetAPI = {
   getBudget: (tripId) => api.get(`/budget/${tripId}`),
   updateBudget: (tripId, budgetData) => api.put(`/budget/${tripId}`, budgetData),
-  getBudgetForecast: (tripId) => api.get(`/budget/${tripId}/forecast`),
-  exportBudget: (tripId) => api.get(`/budget/${tripId}/export`),
 };
 
-// Health check
-export const healthAPI = {
-  check: () => api.get('/health'),
-};
-
-export default api; 
+export default api;

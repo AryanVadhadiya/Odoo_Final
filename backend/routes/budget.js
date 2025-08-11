@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Trip = require('../models/Trip');
 const Activity = require('../models/Activity');
+const generateSampleBudgetData = require('../utils/sampleBudgetData');
 
 const router = express.Router();
 
@@ -31,56 +32,19 @@ router.get('/:tripId', async (req, res) => {
     // Get all activities for this trip
     const activities = await Activity.find({ trip: trip._id });
 
-    // Calculate budget breakdown
-    const breakdown = {
-      accommodation: trip.budget.breakdown.accommodation || 0,
-      transportation: trip.budget.breakdown.transportation || 0,
-      activities: trip.budget.breakdown.activities || 0,
-      food: trip.budget.breakdown.food || 0,
-      other: trip.budget.breakdown.other || 0
-    };
+    // Generate sample budget data
+    const sampleData = generateSampleBudgetData(trip.startDate, trip.endDate);
+    const { breakdown, dailyBreakdown, total, tripDays } = sampleData;
 
-    // Calculate activities cost
-    const activitiesCost = activities.reduce((total, activity) => {
-      return total + (activity.cost.amount || 0);
-    }, 0);
-
-    breakdown.activities = activitiesCost;
-
-    // Calculate total
-    const total = Object.values(breakdown).reduce((sum, amount) => sum + amount, 0);
-
-    // Calculate daily breakdown
-    const dailyBreakdown = {};
+    // Add real activity costs to the sample data
     activities.forEach(activity => {
       const date = activity.date.toISOString().split('T')[0];
-      if (!dailyBreakdown[date]) {
-        dailyBreakdown[date] = {
-          activities: 0,
-          accommodation: 0,
-          transportation: 0,
-          food: 0,
-          other: 0,
-          total: 0
-        };
+      if (dailyBreakdown[date]) {
+        const activityCost = activity.cost.amount || 0;
+        dailyBreakdown[date].activities += activityCost;
+        dailyBreakdown[date].total += activityCost;
+        breakdown.activities += activityCost;
       }
-      dailyBreakdown[date].activities += activity.cost.amount || 0;
-      dailyBreakdown[date].total += activity.cost.amount || 0;
-    });
-
-    // Add accommodation and other costs to daily breakdown
-    const tripDays = Math.ceil((new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24));
-    const dailyAccommodation = breakdown.accommodation / tripDays;
-    const dailyFood = breakdown.food / tripDays;
-    const dailyTransportation = breakdown.transportation / tripDays;
-    const dailyOther = breakdown.other / tripDays;
-
-    Object.keys(dailyBreakdown).forEach(date => {
-      dailyBreakdown[date].accommodation = dailyAccommodation;
-      dailyBreakdown[date].food = dailyFood;
-      dailyBreakdown[date].transportation = dailyTransportation;
-      dailyBreakdown[date].other = dailyOther;
-      dailyBreakdown[date].total += dailyAccommodation + dailyFood + dailyTransportation + dailyOther;
     });
 
     res.status(200).json({

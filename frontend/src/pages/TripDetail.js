@@ -107,6 +107,13 @@ const TripDetail = () => {
             Share
           </button>
           <Link
+            to={`/trips/${tripId}/calendar`}
+            className="btn-secondary inline-flex items-center"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            Calendar
+          </Link>
+          <Link
             to={`/trips/${tripId}/edit`}
             className="btn-primary inline-flex items-center"
           >
@@ -175,12 +182,21 @@ const TripDetail = () => {
             <div className="card-header">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Destinations & Activities</h2>
-                <Link
-                  to={`/trips/${tripId}/itinerary`}
-                  className="text-sm text-primary-600 hover:text-primary-500 font-medium"
-                >
-                  View Full Details
-                </Link>
+                <div className="flex items-center space-x-3">
+                  <Link
+                    to={`/trips/${tripId}/calendar`}
+                    className="text-sm text-primary-600 hover:text-primary-500 font-medium inline-flex items-center"
+                  >
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Calendar View
+                  </Link>
+                  <Link
+                    to={`/trips/${tripId}/itinerary`}
+                    className="text-sm text-primary-600 hover:text-primary-500 font-medium"
+                  >
+                    View Full Details
+                  </Link>
+                </div>
               </div>
             </div>
             <div className="card-body">

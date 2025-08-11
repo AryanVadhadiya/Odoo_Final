@@ -45,8 +45,34 @@ const tripSchema = new mongoose.Schema({
   budget: {
     total: {
       type: Number,
-      default: 0,
+      default: 5000, // Default budget of 5000
       min: [0, 'Budget cannot be negative']
+    },
+    currency: {
+      type: String,
+      default: 'USD'
+    },
+    breakdown: {
+      accommodation: {
+        type: Number,
+        default: 2000 // 40% of total
+      },
+      transportation: {
+        type: Number,
+        default: 1000 // 20% of total
+      },
+      activities: {
+        type: Number,
+        default: 1000 // 20% of total
+      },
+      food: {
+        type: Number,
+        default: 750 // 15% of total
+      },
+      other: {
+        type: Number,
+        default: 250 // 5% of total
+      }
     },
     currency: {
       type: String,

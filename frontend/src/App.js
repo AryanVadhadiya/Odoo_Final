@@ -25,6 +25,9 @@ import Profile from './pages/Profile';
 import PublicTrip from './pages/PublicTrip';
 import CitySearch from './pages/CitySearch';
 import Planner from './pages/Planner';
+import TripBudget from './pages/TripBudget';
+import BudgetOverview from './pages/BudgetOverview';
+import TripCalendar from './pages/TripCalendar';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -98,6 +101,9 @@ function App() {
   <Route path="trips/:tripId/itinerary" element={<div>Not Found</div>} />
         <Route path="cities" element={<CitySearch />} />
         <Route path="planner" element={<Planner />} />
+        <Route path="budget" element={<BudgetOverview />} />
+        <Route path="trips/:tripId/budget" element={<TripBudget />} />
+        <Route path="trips/:tripId/calendar" element={<TripCalendar />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 
