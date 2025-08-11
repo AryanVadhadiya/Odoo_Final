@@ -124,7 +124,8 @@ const CitySearch = () => {
     attractions.slice(0, 10).forEach((attraction) => {
       dispatch(addPlaceToCurrentCity({
         name: attraction.name || 'Attraction',
-        notes: attraction.description || ''
+        notes: attraction.description || '',
+        cost: attraction.cost || 0 // Pass cost for budget tracking
       }));
     });
 

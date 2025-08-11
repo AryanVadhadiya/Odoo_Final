@@ -2,7 +2,7 @@ import React from 'react';
 import TimelineBuilder from '../components/planner/TimelineBuilder';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { saveCurrentCity, clearBuilder } from '../store/slices/tripBuilderSlice';
+import { saveCurrentCity, clearBuilder, selectBudgetUsed, selectBudgetTotal, selectBudgetRemaining } from '../store/slices/tripBuilderSlice';
 import { createTrip } from '../store/slices/tripSlice';
 import { toast } from 'react-hot-toast';
 
@@ -10,6 +10,9 @@ const Planner = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { details, cities } = useSelector((s) => s.tripBuilder || {});
+  const budgetUsed = useSelector(selectBudgetUsed);
+  const budgetTotal = useSelector(selectBudgetTotal);
+  const budgetRemaining = useSelector(selectBudgetRemaining);
 
   const handleAddAnotherCity = () => {
     dispatch(saveCurrentCity());
@@ -19,6 +22,10 @@ const Planner = () => {
 
   const handleFinishAndSaveTrip = async () => {
     dispatch(saveCurrentCity());
+    if (budgetUsed > budgetTotal) {
+      toast.error('Total planned cost exceeds your trip budget!');
+      return;
+    }
     const payload = {
       name: details?.name || 'New Trip',
       description: details?.description || '',
@@ -43,6 +50,22 @@ const Planner = () => {
           <p className="mt-2 text-gray-600">Build your perfect trip timeline with date and time scheduling</p>
         </div>
 
+        {/* Budget Info */}
+        <div className="mb-6 flex gap-6 items-center">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center">
+            <span className="text-gray-600 text-sm">Total Budget</span>
+            <span className="text-xl font-bold text-primary-700">${budgetTotal}</span>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center">
+            <span className="text-gray-600 text-sm">Planned Cost</span>
+            <span className="text-xl font-bold text-yellow-700">${budgetUsed}</span>
+          </div>
+          <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col items-center ${budgetRemaining < 0 ? 'border-red-400' : ''}`}>
+            <span className="text-gray-600 text-sm">Remaining</span>
+            <span className={`text-xl font-bold ${budgetRemaining < 0 ? 'text-red-600' : 'text-green-700'}`}>${budgetRemaining}</span>
+          </div>
+        </div>
+
         <TimelineBuilder />
 
         <div className="flex gap-4 mt-8 justify-end">
@@ -55,6 +78,7 @@ const Planner = () => {
           <button
             className="px-6 py-3 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
             onClick={handleFinishAndSaveTrip}
+            disabled={budgetUsed > budgetTotal}
           >
             Finish and Save Trip
           </button>
@@ -64,4 +88,4 @@ const Planner = () => {
   );
 };
 
-export default Planner; 
+export default Planner;
