@@ -88,6 +88,7 @@ export const cityAPI = {
   getClimates: () => api.get('/cities/climates'),
   getNearbyCities: (lat, lng, radius, limit) => 
     api.get('/cities/nearby', { params: { lat, lng, radius, limit } }),
+  aiSearchCity: (cityName) => api.post('/cities/ai-search', { cityName }),
 };
 
 // User API

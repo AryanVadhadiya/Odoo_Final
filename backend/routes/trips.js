@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Trip = require('../models/Trip');
 const Activity = require('../models/Activity');
+const geminiService = require('../services/geminiService');
 
 const router = express.Router();
 
@@ -431,6 +432,124 @@ router.post('/:id/collaborators', [
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// @route   POST /api/trips/:id/generate-itinerary
+// @desc    Generate AI-powered itinerary for a trip
+// @access  Private
+router.post('/:id/generate-itinerary', async (req, res) => {
+  try {
+    const trip = await Trip.findOne({ 
+      _id: req.params.id, 
+      user: req.user.id 
+    }).populate('destinations');
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    const { interests, travelPace, budget } = req.body;
+
+    // Calculate duration
+    const duration = Math.ceil((trip.endDate - trip.startDate) / (1000 * 60 * 60 * 24));
+
+    const preferences = {
+      duration,
+      budget: budget || trip.budget?.total || 1000,
+      interests: interests || [],
+      travelPace: travelPace || 'moderate'
+    };
+
+    const cities = trip.destinations || [];
+    const aiItinerary = await geminiService.generateItinerary(cities, preferences);
+
+    // Update trip with AI-generated budget if not set
+    if (!trip.budget?.total && aiItinerary.totalEstimatedCost) {
+      trip.budget.total = aiItinerary.totalEstimatedCost;
+      await trip.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        trip: {
+          id: trip._id,
+          name: trip.name,
+          duration,
+          cities: cities.length
+        },
+        aiItinerary,
+        preferences
+      }
+    });
+  } catch (error) {
+    console.error('Generate itinerary error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to generate itinerary'
+    });
+  }
+});
+
+// @route   POST /api/trips/:id/budget-breakdown
+// @desc    Generate AI-powered budget breakdown
+// @access  Private
+router.post('/:id/budget-breakdown', async (req, res) => {
+  try {
+    const trip = await Trip.findOne({ 
+      _id: req.params.id, 
+      user: req.user.id 
+    }).populate('destinations');
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    const { travelStyle, groupSize } = req.body;
+
+    // Calculate duration
+    const duration = Math.ceil((trip.endDate - trip.startDate) / (1000 * 60 * 60 * 24));
+
+    const tripDetails = {
+      cities: trip.destinations || [],
+      duration,
+      travelStyle: travelStyle || 'mid-range',
+      groupSize: groupSize || 1
+    };
+
+    const budgetBreakdown = await geminiService.generateBudgetBreakdown(tripDetails);
+
+    // Update trip budget if AI suggests different amount
+    if (budgetBreakdown.grandTotal && (!trip.budget?.total || trip.budget.total === 0)) {
+      trip.budget.total = budgetBreakdown.grandTotal;
+      await trip.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        trip: {
+          id: trip._id,
+          name: trip.name,
+          duration,
+          currentBudget: trip.budget?.total || 0
+        },
+        budgetBreakdown
+      }
+    });
+  } catch (error) {
+    console.error('Budget breakdown error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to generate budget breakdown'
     });
   }
 });

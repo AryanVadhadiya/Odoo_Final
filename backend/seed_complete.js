@@ -42,7 +42,7 @@ const cities = [
       },
       {
         name: 'Notre-Dame Cathedral',
-        type: 'historical',
+        type: 'religious',
         description: 'Medieval Catholic cathedral with Gothic architecture',
         rating: 4.6,
         cost: 0
@@ -100,7 +100,7 @@ const cities = [
       },
       {
         name: 'Senso-ji Temple',
-        type: 'historical',
+        type: 'religious',
         description: 'Ancient Buddhist temple',
         rating: 4.5,
         cost: 0
@@ -230,14 +230,14 @@ const cities = [
       },
       {
         name: 'Wat Pho Temple',
-        type: 'historical',
+        type: 'religious',
         description: 'Temple known for its giant reclining Buddha',
         rating: 4.5,
         cost: 3
       },
       {
         name: 'Floating Market',
-        type: 'cultural',
+        type: 'market',
         description: 'Traditional market on boats',
         rating: 4.2,
         cost: 0
@@ -281,14 +281,14 @@ const cities = [
     currency: 'EUR',
     languages: ['Spanish', 'Catalan', 'English'],
     climate: {
-      type: 'temperate',
+      type: 'mediterranean',
       averageTemp: { summer: 26, winter: 10 },
       rainfall: 'low'
     },
     attractions: [
       {
         name: 'Sagrada Familia',
-        type: 'historical',
+        type: 'religious',
         description: 'Iconic basilica designed by Antoni Gaudí',
         rating: 4.7,
         cost: 26
@@ -302,7 +302,7 @@ const cities = [
       },
       {
         name: 'Las Ramblas',
-        type: 'cultural',
+        type: 'street',
         description: 'Famous tree-lined pedestrian street',
         rating: 4.1,
         cost: 0
@@ -346,9 +346,9 @@ const cities = [
     currency: 'AED',
     languages: ['Arabic', 'English'],
     climate: {
-      type: 'dry',
+      type: 'desert',
       averageTemp: { summer: 40, winter: 24 },
-      rainfall: 'low'
+      rainfall: 'very low'
     },
     attractions: [
       {
@@ -476,7 +476,7 @@ const cities = [
     currency: 'EUR',
     languages: ['Italian', 'English'],
     climate: {
-      type: 'temperate',
+      type: 'mediterranean',
       averageTemp: { summer: 28, winter: 8 },
       rainfall: 'moderate'
     },
@@ -490,7 +490,7 @@ const cities = [
       },
       {
         name: 'Vatican City',
-        type: 'historical',
+        type: 'religious',
         description: 'Papal enclave with St. Peter\'s Basilica',
         rating: 4.7,
         cost: 17
@@ -548,14 +548,14 @@ const cities = [
     attractions: [
       {
         name: 'Tanah Lot Temple',
-        type: 'historical',
+        type: 'religious',
         description: 'Rock formation temple',
         rating: 4.3,
         cost: 5
       },
       {
         name: 'Ubud Rice Terraces',
-        type: 'natural',
+        type: 'nature',
         description: 'Beautiful terraced rice fields',
         rating: 4.5,
         cost: 0
@@ -574,7 +574,7 @@ const cities = [
         name: 'Ngurah Rai International Airport',
         code: 'DPS'
       },
-      publicTransport: 'poor',
+      publicTransport: 'limited',
       metro: false,
       bus: true,
       taxi: true
@@ -1084,8 +1084,9 @@ const seedDatabase = async () => {
     const createdCities = await City.insertMany(cities);
     console.log(`Created ${createdCities.length} cities`);
 
-    // Note: Activities are created through the API when users plan trips
-    const createdActivities = [];
+    // Create activities
+    const createdActivities = await Activity.insertMany(activities);
+    console.log(`Created ${createdActivities.length} activities`);
 
     // Hash passwords and create users
     const hashedUsers = await Promise.all(
@@ -1098,8 +1099,15 @@ const seedDatabase = async () => {
     console.log(`Created ${createdUsers.length} users`);
 
     // Associate trips with users and create trips
-    // Note: Trips will be created through the application UI
-    const createdTrips = [];
+    const tripsWithUsers = trips.map((trip, index) => ({
+      ...trip,
+      user: createdUsers[index % createdUsers.length]._id,
+      destinations: trip.destinations.map(destName => 
+        createdCities.find(city => city.name === destName)?._id
+      ).filter(Boolean)
+    }));
+    const createdTrips = await Trip.insertMany(tripsWithUsers);
+    console.log(`Created ${createdTrips.length} trips`);
 
     console.log('\n🎉 Database seeded successfully!');
     console.log('\nSample data created:');

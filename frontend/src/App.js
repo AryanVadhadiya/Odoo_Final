@@ -23,6 +23,7 @@ import TripEdit from './pages/TripEdit';
 import Itinerary from './pages/Itinerary';
 import Profile from './pages/Profile';
 import PublicTrip from './pages/PublicTrip';
+import CitySearch from './pages/CitySearch';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -94,6 +95,7 @@ function App() {
         <Route path="trips/:tripId" element={<TripDetail />} />
         <Route path="trips/:tripId/edit" element={<TripEdit />} />
         <Route path="trips/:tripId/itinerary" element={<Itinerary />} />
+        <Route path="cities" element={<CitySearch />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 
