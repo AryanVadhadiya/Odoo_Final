@@ -87,6 +87,15 @@ const Header = () => {
 
         {/* Right side */}
         <div className="flex items-center space-x-4">
+          {/* Admin Dashboard Link */}
+          <Link
+            to="/admin"
+            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 rounded-xl transform hover:scale-105"
+          >
+            <Globe className="h-4 w-4 mr-2" />
+            Admin
+          </Link>
+          
           {/* Notifications */}
           <div className="relative">
             <button
@@ -157,6 +166,7 @@ const Header = () => {
                     <Settings className="h-4 w-4 mr-3 text-primary-600" />
                     Profile Settings
                   </Link>
+
                   <hr className="my-1 border-gray-200/50" />
                   <button
                     onClick={handleLogout}

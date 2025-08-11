@@ -104,6 +104,19 @@ export const userAPI = {
   deleteAccount: () => api.delete('/users/account'),
 };
 
+// Admin API
+export const adminAPI = {
+  getStats: () => api.get('/admin/stats'),
+  getPopularCities: () => api.get('/admin/cities/popular'),
+  getPopularActivities: () => api.get('/admin/activities/popular'),
+  getPopularPlaces: () => api.get('/admin/places/popular'),
+  getDurationByBudget: () => api.get('/admin/trips/duration-by-budget'),
+  getBudgetByDuration: () => api.get('/admin/trips/budget-by-duration'),
+  getBudgetDistribution: () => api.get('/admin/trips/budget-distribution'),
+  getMonthlyTrends: () => api.get('/admin/trends/monthly'),
+  exportCSV: (type) => api.get(`/admin/export/csv?type=${type}`, { responseType: 'blob' }),
+};
+
 // Budget API
 export const budgetAPI = {
   getBudget: (tripId) => api.get(`/budget/${tripId}`),

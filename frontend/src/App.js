@@ -24,6 +24,7 @@ import Itinerary from './pages/Itinerary';
 import Profile from './pages/Profile';
 import PublicTrip from './pages/PublicTrip';
 import Community from './pages/Community';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -81,6 +82,7 @@ function App() {
       } />
       <Route path="/trip/:publicUrl" element={<PublicTrip />} />
       <Route path="/public-trip/:publicUrl" element={<PublicTrip />} />
+      <Route path="/admin" element={<AdminDashboard />} />
 
       {/* Protected routes */}
       <Route path="/" element={

@@ -14,6 +14,7 @@ const userRoutes = require('./routes/users');
 const activityRoutes = require('./routes/activities');
 const cityRoutes = require('./routes/cities');
 const budgetRoutes = require('./routes/budget');
+const adminRoutes = require('./routes/admin');
 
 const errorHandler = require('./middleware/errorHandler');
 const { auth } = require('./middleware/auth');
@@ -61,6 +62,7 @@ app.use('/api/users', auth, userRoutes);
 app.use('/api/activities', auth, activityRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/budget', auth, budgetRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Public routes (no auth required)
 app.use('/api/trips/public', tripRoutes);
