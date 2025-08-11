@@ -1,0 +1,239 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Color palette */
+  --color-midnight-50: #f8fafc;
+  --color-midnight-100: #f1f5f9;
+  --color-midnight-200: #e2e8f0;
+  --color-midnight-300: #cbd5e1;
+  --color-midnight-400: #94a3b8;
+  --color-midnight-500: #64748b;
+  --color-midnight-600: #475569;
+  --color-midnight-700: #334155;
+  --color-midnight-800: #1e293b;
+  --color-midnight-900: #0f172a;
+  
+  --color-ocean-50: #f0f9ff;
+  --color-ocean-100: #e0f2fe;
+  --color-ocean-200: #bae6fd;
+  --color-ocean-300: #7dd3fc;
+  --color-ocean-400: #38bdf8;
+  --color-ocean-500: #0ea5e9;
+  --color-ocean-600: #0284c7;
+  --color-ocean-700: #0369a1;
+  --color-ocean-800: #075985;
+  --color-ocean-900: #0c4a6e;
+  
+  --color-sky-50: #f0f9ff;
+  --color-sky-100: #e0f2fe;
+  --color-sky-200: #bae6fd;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #0284c7;
+  --color-sky-700: #0369a1;
+  --color-sky-800: #075985;
+  --color-sky-900: #0c4a6e;
+  
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #059669;
+  --color-success-800: #047857;
+  --color-success-900: #065f46;
+  
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+  
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  
+  /* Spacing scale */
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+  --spacing-24: 96px;
+  --spacing-32: 128px;
+  
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  
+  /* Border colors */
+  --color-border: #e2e8f0;
+}
+
+/* Dark mode */
+.theme-dark {
+  --color-midnight-50: #0f172a;
+  --color-midnight-100: #1e293b;
+  --color-midnight-200: #334155;
+  --color-midnight-300: #475569;
+  --color-midnight-400: #64748b;
+  --color-midnight-500: #94a3b8;
+  --color-midnight-600: #cbd5e1;
+  --color-midnight-700: #e2e8f0;
+  --color-midnight-800: #f1f5f9;
+  --color-midnight-900: #f8fafc;
+}
+
+@layer base {
+  /* Removed global border-border utility to fix Tailwind error */
+  
+  body {
+    @apply bg-white text-midnight-900 font-inter;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Focus styles */
+  .focus-visible:focus {
+    @apply outline-none ring-2 ring-ocean-500 ring-offset-2;
+  }
+  
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Glass effect */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-glass;
+  }
+  
+  .glass-panel {
+    @apply bg-white/60 backdrop-blur-sm border border-white/30;
+  }
+  
+  /* Button variants */
+  .btn-primary {
+    @apply bg-midnight-900 text-white hover:bg-midnight-800 focus-visible:ring-midnight-500 transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-white/80 text-midnight-900 border border-midnight-200 hover:bg-white hover:border-midnight-300 focus-visible:ring-midnight-500 transition-all duration-200;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-midnight-700 hover:bg-midnight-50 hover:text-midnight-900 focus-visible:ring-midnight-500 transition-colors duration-200;
+  }
+  
+  .btn-destructive {
+    @apply bg-danger-600 text-white hover:bg-danger-700 focus-visible:ring-danger-500 transition-colors duration-200;
+  }
+  
+  /* Form styles */
+  .form-input {
+    @apply w-full px-3 py-2 border border-midnight-200 rounded-md bg-white focus:border-ocean-500 focus:ring-1 focus:ring-ocean-500 transition-colors duration-200;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-midnight-700 mb-1;
+  }
+  
+  .form-error {
+    @apply text-sm text-danger-600 mt-1;
+  }
+  
+  /* Card styles */
+  .trip-card {
+    @apply bg-white rounded-lg border border-midnight-200 hover:border-ocean-300 hover:shadow-lg transition-all duration-200;
+  }
+  
+  /* Animation classes */
+  .fade-in {
+    @apply opacity-0 transition-opacity duration-500 ease-in-out;
+  }
+  .fade-in.is-visible {
+    @apply opacity-100;
+  }
+  
+  .fade-up {
+    @apply opacity-0 translate-y-5 transition-all duration-500 ease-out;
+  }
+  .fade-up.is-visible {
+    @apply opacity-100 translate-y-0;
+  }
+  
+  .slide-up {
+    @apply translate-y-full transition-transform duration-300 ease-out;
+  }
+  .slide-up.is-visible {
+    @apply translate-y-0;
+  }
+  
+  .bounce-in {
+    @apply scale-95 opacity-0 transition-all duration-500 ease-out;
+  }
+  .bounce-in.is-visible {
+    @apply scale-100 opacity-100;
+  }
+}
+
+@layer utilities {
+  /* Custom utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Glassmorphism utilities */
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+} 
