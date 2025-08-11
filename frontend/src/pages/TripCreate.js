@@ -1,8 +1,30 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { startTripBuild } from '../store/slices/tripBuilderSlice';
 
 const TripCreate = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const nameRef = useRef(null);
+  const descRef = useRef(null);
+  const startRef = useRef(null);
+  const endRef = useRef(null);
+  const budgetRef = useRef(null);
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    const details = {
+      name: nameRef.current?.value?.trim() || 'New Trip',
+      description: descRef.current?.value?.trim() || '',
+      startDate: startRef.current?.value || null,
+      endDate: endRef.current?.value || null,
+      budget: Number(budgetRef.current?.value) || 0,
+    };
+    dispatch(startTripBuild(details));
+    navigate('/cities');
+  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -24,7 +46,7 @@ const TripCreate = () => {
       {/* Trip creation form */}
       <div className="card">
         <div className="card-body">
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={onSubmit}>
             {/* Trip name */}
             <div>
               <label htmlFor="tripName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -35,6 +57,8 @@ const TripCreate = () => {
                 id="tripName"
                 className="input"
                 placeholder="e.g., Paris Adventure, Tokyo Discovery"
+                ref={nameRef}
+                required
               />
             </div>
 
@@ -48,6 +72,7 @@ const TripCreate = () => {
                 rows={3}
                 className="input"
                 placeholder="Describe your trip..."
+                ref={descRef}
               />
             </div>
 
@@ -61,6 +86,8 @@ const TripCreate = () => {
                   type="date"
                   id="startDate"
                   className="input"
+                  ref={startRef}
+                  required
                 />
               </div>
               <div>
@@ -71,6 +98,8 @@ const TripCreate = () => {
                   type="date"
                   id="endDate"
                   className="input"
+                  ref={endRef}
+                  required
                 />
               </div>
             </div>
@@ -87,6 +116,7 @@ const TripCreate = () => {
                   id="budget"
                   className="input pl-8"
                   placeholder="0.00"
+                  ref={budgetRef}
                 />
               </div>
             </div>

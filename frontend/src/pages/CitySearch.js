@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   MapPin, 
@@ -14,11 +15,13 @@ import {
 } from 'lucide-react';
 import { searchCities, getAIRecommendations, aiSearchCity } from '../store/slices/citySlice';
 import { addStop, addToBasket, addCityAttractions } from '../store/slices/plannerSlice';
+import { setCurrentCity, addPlaceToCurrentCity } from '../store/slices/tripBuilderSlice';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 
 const CitySearch = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { cities, loading, aiRecommendations, error, aiSearchResult } = useSelector(state => state.cities);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,22 +99,54 @@ const CitySearch = () => {
   };
 
   const handleAddToItinerary = (city) => {
-    // Add attractions to the planner
-    if (city.attractions && city.attractions.length > 0) {
+    const cityName = city?.name || city?.city || 'City';
+    const country = city?.country || 'Unknown';
+    const attractions = city?.attractions && city.attractions.length
+      ? city.attractions
+      : (Array.isArray(city?.activities) ? city.activities.map(a => ({ name: typeof a === 'string' ? a : String(a), description: '' })) : []);
+
+    // Add attractions to the planner if available
+    if (attractions.length > 0) {
       dispatch(addCityAttractions({
-        cityName: city.name,
-        attractions: city.attractions
+        cityName,
+        attractions,
       }));
 
       // Add top attractions to basket
-      city.attractions.slice(0, 5).forEach((attraction, index) => {
-        const activityId = `city-${city.name}-attraction-${index}`;
+      attractions.slice(0, 5).forEach((attraction, index) => {
+        const activityId = `city-${cityName}-attraction-${index}`;
         dispatch(addToBasket(activityId));
       });
     }
 
-    toast.success(`${city.name} attractions added to your basket! Go to Planner to schedule them.`);
+    // Set current city in trip builder and prefill places
+    dispatch(setCurrentCity({ city: cityName, country }));
+    attractions.slice(0, 10).forEach((attraction) => {
+      dispatch(addPlaceToCurrentCity({
+        name: attraction.name || 'Attraction',
+        notes: attraction.description || ''
+      }));
+    });
+
+    toast.success(`${cityName} added. You can add more places or cities, then review in Planner.`);
+    // Stay on this page, do not navigate
   };
+  // Add a button to go to /planner
+  // Removed duplicate useNavigate declaration
+  // ...existing code...
+  // ...existing code...
+
+  // Place this button at the end of the return JSX, just before the closing main div
+
+// At the end of the return statement, before the final closing tag:
+  <div className="flex justify-end mt-8">
+    <button
+      className="px-6 py-3 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
+      onClick={() => navigate('/planner')}
+    >
+      Review & Plan Itinerary
+    </button>
+  </div>
 
   return (
     <div className="min-h-screen p-6">
@@ -279,7 +314,7 @@ const CitySearch = () => {
                   {/* Actions */}
                   <div className="mt-6 flex gap-2">
                     <button className="btn-primary flex-1 text-sm">Learn More</button>
-                    <button className="btn-secondary text-sm">Add to Itinerary</button>
+                    <button className="btn-secondary text-sm" onClick={() => handleAddToItinerary(city)}>Add to Itinerary</button>
                   </div>
                 </div>
               ))}

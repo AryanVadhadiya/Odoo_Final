@@ -95,7 +95,7 @@ function App() {
         <Route path="trips/create" element={<TripCreate />} />
         <Route path="trips/:tripId" element={<TripDetail />} />
         <Route path="trips/:tripId/edit" element={<TripEdit />} />
-        <Route path="trips/:tripId/itinerary" element={<Itinerary />} />
+  <Route path="trips/:tripId/itinerary" element={<div>Not Found</div>} />
         <Route path="cities" element={<CitySearch />} />
         <Route path="planner" element={<Planner />} />
         <Route path="profile" element={<Profile />} />

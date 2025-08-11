@@ -4,6 +4,7 @@ import tripReducer from './slices/tripSlice';
 import uiReducer from './slices/uiSlice';
 import cityReducer from './slices/citySlice';
 import plannerReducer from './slices/plannerSlice';
+import tripBuilderReducer from './slices/tripBuilderSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     ui: uiReducer,
     cities: cityReducer,
     planner: plannerReducer,
+  tripBuilder: tripBuilderReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
