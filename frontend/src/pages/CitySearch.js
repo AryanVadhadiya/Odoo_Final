@@ -588,6 +588,16 @@ const CitySearch = () => {
         )}
       </div>
 
+      {/* Button to go to Planner */}
+      <div className="flex justify-center mt-8">
+        <button
+          className="px-8 py-4 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition text-lg"
+          onClick={() => navigate('/planner')}
+        >
+          Review & Plan Itinerary
+        </button>
+      </div>
+
       {/* AI Preferences Modal */}
       {showAIDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
