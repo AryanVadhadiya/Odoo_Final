@@ -68,10 +68,20 @@ export const aiSearchCity = createAsyncThunk(
   'cities/aiSearchCity',
   async (cityName, { rejectWithValue }) => {
     try {
-      const response = await api.post('/cities/ai-search', { cityName });
+      const response = await api.post('/cities/ai-search', { cityName }, { timeout: 90000 });
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to search for city');
+      // Surface clearer errors and log for debugging
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.message;
+      const serverError = error.response?.data?.error;
+      const fallback = 'Failed to search for city';
+      const message = serverMessage || serverError || error.message || fallback;
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.error('aiSearchCity error:', { status, serverMessage, serverError });
+      }
+      return rejectWithValue(message);
     }
   }
 );

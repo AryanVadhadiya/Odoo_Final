@@ -97,13 +97,19 @@ const CitySearch = () => {
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent mb-4">
-            Discover Your Perfect Destination
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            AI-Powered City Search
           </h1>
-          <p className="text-lg text-gray-600">
-            Search cities worldwide or let AI recommend the perfect destinations for your next adventure
+          <p className="text-xl text-gray-600 mb-6">
+            Type any city name in the world (e.g., Delhi, Paris, Tokyo, New York)...
           </p>
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+            <p className="text-blue-800 font-medium">
+              🚀 AI will generate comprehensive city data with <strong>15 most famous attractions</strong>, 
+              costs in local currency, and detailed recommendations for any location you search!
+            </p>
+          </div>
         </div>
 
         {/* Search and AI Section */}
@@ -249,10 +255,12 @@ const CitySearch = () => {
         )}
 
         {/* Search Results */}
-        {cities && cities.length > 0 && (
+        {((cities && cities.length > 0) || aiSearchResult) && (
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Search Results ({cities.length} cities)</h2>
+              <h2 className="text-2xl font-bold">
+                Search Results ({aiSearchResult ? 1 : cities.length} cities)
+              </h2>
               {aiSearchResult && (
                 <div className="flex items-center text-sm text-secondary-600 bg-secondary-50 px-3 py-1 rounded-full">
                   <Sparkles className="h-4 w-4 mr-1" />
@@ -262,8 +270,8 @@ const CitySearch = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cities.map((city) => (
-                <div key={city._id} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
+              {(cities && cities.length > 0 ? cities : (aiSearchResult ? [aiSearchResult] : [])).map((city) => city && (
+                <div key={city._id || `city-${Math.random()}`} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900">{city.name}</h3>
@@ -295,7 +303,9 @@ const CitySearch = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Cost Index:</span>
-                      <span className="font-semibold text-primary-600">${city.costIndex || 50}/day</span>
+                      <span className="font-semibold text-primary-600">
+                        {city.currency === 'INR' ? '₹' : '$'}{city.costIndex || 50}/day
+                      </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
@@ -309,17 +319,27 @@ const CitySearch = () => {
                     </div>
                   </div>
 
-                  {/* Attractions */}
+                  {/* Top Attractions Preview */}
                   {city.attractions && city.attractions.length > 0 && (
                     <div className="mt-4">
-                      <h4 className="font-medium mb-2">Top Attractions:</h4>
-                      <div className="space-y-1">
+                      <h4 className="font-medium mb-2 flex items-center">
+                        <Star className="h-4 w-4 mr-1 text-accent-500" />
+                        Top Attractions ({city.attractions.length})
+                      </h4>
+                      <div className="space-y-2">
                         {city.attractions.slice(0, 3).map((attraction, idx) => (
-                          <div key={idx} className="text-xs text-gray-600 flex items-center justify-between">
-                            <span>{attraction.name}</span>
-                            <span className="text-primary-600 font-medium">${attraction.cost}</span>
+                          <div key={idx} className="text-xs text-gray-600 flex items-center justify-between bg-gray-50 p-2 rounded">
+                            <span className="font-medium">{attraction.name}</span>
+                            <span className="text-primary-600 font-semibold">
+                              {attraction.costCurrency === 'INR' ? '₹' : '$'}{attraction.cost}
+                            </span>
                           </div>
                         ))}
+                        {city.attractions.length > 3 && (
+                          <div className="text-xs text-gray-500 text-center">
+                            +{city.attractions.length - 3} more attractions
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -339,20 +359,146 @@ const CitySearch = () => {
 
                   <div className="mt-6 flex gap-2">
                     <button className="btn-primary flex-1 text-sm">
-                      Add to Trip
+                      View All Attractions
                     </button>
                     <button className="btn-secondary text-sm">
-                      View Details
+                      Add to Trip
                     </button>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Detailed Attractions Section */}
+            {cities.length === 1 && cities[0].attractions && cities[0].attractions.length > 0 && (
+              <div className="mt-12">
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold mb-2">
+                    Top {cities[0].attractions.length} Places to Visit in {cities[0].name}
+                  </h2>
+                  <p className="text-gray-600">
+                    Discover the most famous attractions with detailed information, costs, and recommendations
+                  </p>
+                  {cities[0].currency === 'INR' && (
+                    <div className="mt-2 inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                      <span>💰 Costs shown in Indian Rupees (₹)</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {cities[0].attractions.map((attraction, index) => (
+                    <div key={attraction._id || index} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
+                      {/* Attraction Image */}
+                      <div className="mb-4 rounded-lg overflow-hidden">
+                        <img 
+                          src={`https://images.unsplash.com/photo-${Math.random().toString(36).substring(7)}?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80`}
+                          alt={attraction.name}
+                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80';
+                          }}
+                        />
+                      </div>
+
+                      {/* Attraction Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="text-xl font-semibold text-gray-900 mb-1">{attraction.name}</h3>
+                          <div className="flex items-center gap-2">
+                            <span className="badge badge-secondary text-xs">
+                              {attraction.type}
+                            </span>
+                            {attraction.rating && (
+                              <div className="flex items-center">
+                                <Star className="h-3 w-3 text-yellow-500 mr-1" />
+                                <span className="text-sm font-medium">{attraction.rating}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-primary-600">
+                            {attraction.costCurrency === 'INR' ? '₹' : '$'}{attraction.cost}
+                          </div>
+                          <div className="text-xs text-gray-500">Entry Fee</div>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      {attraction.description && (
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                          {attraction.description}
+                        </p>
+                      )}
+
+                      {/* Additional Info */}
+                      <div className="space-y-2 mb-4">
+                        {attraction.bestTimeToVisit && (
+                          <div className="flex items-center text-xs text-gray-600">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            <span>Best time: {attraction.bestTimeToVisit}</span>
+                          </div>
+                        )}
+                        {attraction.visitDuration && (
+                          <div className="flex items-center text-xs text-gray-600">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>Duration: {attraction.visitDuration}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Highlights */}
+                      {attraction.highlights && attraction.highlights.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Highlights:</h5>
+                          <div className="flex flex-wrap gap-1">
+                            {attraction.highlights.map((highlight, idx) => (
+                              <span key={idx} className="badge badge-accent text-xs">
+                                {highlight}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Info */}
+                      <div className="space-y-2 text-sm">
+                        {attraction.duration && (
+                          <div className="flex items-center text-gray-600">
+                            <Clock className="h-4 w-4 mr-2" />
+                            <span>Duration: {attraction.duration}</span>
+                          </div>
+                        )}
+                        {attraction.bestTime && (
+                          <div className="flex items-center text-gray-600">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            <span>Best Time: {attraction.bestTime}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="mt-6 flex gap-2">
+                        <button className="btn-primary flex-1 text-sm">
+                          Learn More
+                    </button>
+                    <button className="btn-secondary text-sm">
+                          Add to Itinerary
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+              </div>
+            )}
           </div>
         )}
 
+
+
         {/* No Results */}
-        {!loading && cities && cities.length === 0 && searchQuery && (
+        {!loading && !error && cities && cities.length === 0 && searchQuery && !aiSearchResult && (
           <div className="text-center py-12">
             <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No cities found</h3>

@@ -24,7 +24,8 @@ const auth = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const jwtSecret = process.env.JWT_SECRET || 'fallback_jwt_secret_for_development_only';
+      const decoded = jwt.verify(token, jwtSecret);
       
       // Get user from database
       const user = await User.findById(decoded.id).select('-password');
@@ -79,7 +80,8 @@ const optionalAuth = async (req, res, next) => {
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const jwtSecret = process.env.JWT_SECRET || 'fallback_jwt_secret_for_development_only';
+        const decoded = jwt.verify(token, jwtSecret);
         const user = await User.findById(decoded.id).select('-password');
         
         if (user && user.isActive) {

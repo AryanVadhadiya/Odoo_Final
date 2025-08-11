@@ -271,7 +271,7 @@ class GeminiService {
       throw new Error('Gemini API not configured');
     }
 
-    const prompt = `Generate comprehensive data for the city "${cityName}" in the following JSON format. Use real, accurate information:
+    const prompt = `Generate comprehensive data for the city "${cityName}" in the following JSON format. Use real, accurate information and include EXACTLY 15 ATTRACTIONS with detailed descriptions, costs, and ratings:
 
     {
       "name": "City Name",
@@ -288,21 +288,24 @@ class GeminiService {
       "currency": "Currency code",
       "languages": ["Language1", "Language2"],
       "climate": {
-        "type": "climate type",
+        "type": "climate type (tropical, dry, temperate, continental, polar)",
         "averageTemp": {
           "summer": 0,
           "winter": 0
         },
-        "rainfall": "rainfall description"
+        "rainfall": "low, moderate, or high"
       },
       "attractions": [
         {
           "name": "Attraction name",
-          "type": "type",
-          "description": "Description",
+          "type": "landmark, museum, park, beach, mountain, shopping, entertainment, cultural, historical, or natural",
+          "description": "Detailed description of the attraction",
           "rating": 0.0,
           "cost": 0,
-          "_id": "generated_id_1"
+          "costCurrency": "USD",
+          "bestTimeToVisit": "Best time to visit this attraction",
+          "visitDuration": "Recommended time to spend (e.g., 2-3 hours)",
+          "highlights": ["Key highlight 1", "Key highlight 2", "Key highlight 3"]
         }
       ],
       "transportation": {
@@ -311,7 +314,7 @@ class GeminiService {
           "name": "Airport name",
           "code": "Airport code"
         },
-        "publicTransport": "quality rating",
+        "publicTransport": "excellent, good, fair, or poor",
         "metro": true/false,
         "bus": true/false,
         "taxi": true/false
@@ -324,8 +327,7 @@ class GeminiService {
         {
           "url": "https://images.unsplash.com/photo-example",
           "caption": "Image caption",
-          "isPrimary": true,
-          "_id": "generated_id_2"
+          "isPrimary": true
         }
       ],
       "tags": ["tag1", "tag2", "tag3"],
@@ -333,15 +335,22 @@ class GeminiService {
       "isActive": true
     }
 
-    Guidelines:
-    - Use accurate coordinates, population, and factual information
-    - Cost index should be 0-100 (0=very cheap, 100=very expensive)
-    - Include 3-5 major attractions with realistic costs in USD
-    - Popularity should be 0-100 based on tourism popularity
-    - Include relevant tags describing the city's character
-    - Use real Unsplash photo URLs that would show the city
-    - Safety rating 1-10 (10=very safe)
-    - Make sure all data is realistic and helpful for travelers`;
+    CRITICAL REQUIREMENTS:
+    1. Generate EXACTLY 15 attractions - no more, no less
+    2. For Indian cities (like Delhi, Mumbai, Jaipur), use costs in Indian Rupees (INR) and set costCurrency to "INR"
+    3. For other cities, use costs in USD and set costCurrency to "USD"
+    4. Each attraction must have realistic costs based on the city's economy
+    5. Include the most famous and popular attractions for the city
+    6. Use accurate coordinates, population, and factual information
+    7. Cost index should be 0-100 (0=very cheap, 100=very expensive)
+    8. Popularity should be 0-100 based on tourism popularity
+    9. Include relevant tags describing the city's character
+    10. Use real Unsplash photo URLs that would show the city
+    11. Safety rating 1-10 (10=very safe)
+    12. Make sure all data is realistic and helpful for travelers
+    13. For attractions, include famous landmarks, museums, parks, shopping areas, and cultural sites
+    14. Each attraction should have a detailed description explaining why it's worth visiting
+    15. Include best time to visit and recommended duration for each attraction`;
 
     try {
       const result = await this.model.generateContent(prompt);
