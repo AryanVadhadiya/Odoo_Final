@@ -1,8 +1,126 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, MapPin, ShieldCheck, ShieldOff, Calendar, DollarSign, Heart, Share2, Copy, Eye, Filter, Globe, TrendingUp, Star } from 'lucide-react';
-import { tripAPI } from '../services/api';
+import { Users, Search, MapPin, ShieldCheck, ShieldOff, Calendar, DollarSign, Heart, Share2, Copy, Eye, Filter, Globe, TrendingUp, Star, MapPin as MapPinIcon } from 'lucide-react';
+import { tripAPI, userAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
+
+const CommunityUsers = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await userAPI.getCommunityUsers();
+        setUsers(response.data?.data || []);
+      } catch (error) {
+        console.error('Failed to load community users:', error);
+        setUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h2 className="text-lg font-semibold text-gray-900">Community Members</h2>
+        </div>
+        <div className="card-body grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-48 rounded-lg bg-gray-100 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h2 className="text-lg font-semibold text-gray-900">Community Members</h2>
+        </div>
+        <div className="card-body text-center py-8">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No community members yet</h3>
+          <p className="text-gray-600">Be the first to join our travel community!</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2 className="text-lg font-semibold text-gray-900">Community Members</h2>
+      </div>
+      <div className="card-body">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {users.map((user) => (
+            <div key={user._id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-4 mb-4">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                    {user.name.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                  {user.bio && (
+                    <p className="text-sm text-gray-600 line-clamp-2">{user.bio}</p>
+                  )}
+                </div>
+              </div>
+              
+              {user.savedDestinations && user.savedDestinations.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <MapPinIcon className="h-4 w-4 mr-1" />
+                    Saved Destinations
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {user.savedDestinations.slice(0, 3).map((dest, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {dest.city}, {dest.country}
+                      </span>
+                    ))}
+                    {user.savedDestinations.length > 3 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        +{user.savedDestinations.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <span>Member since {new Date(user.createdAt).toLocaleDateString()}</span>
+                {user.preferences?.language && (
+                  <span className="uppercase">{user.preferences.language}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const LatestPublicTrips = ({ searchQuery, selectedFilter, selectedSort }) => {
   const [trips, setTrips] = useState([]);
@@ -352,6 +470,9 @@ const Community = () => {
           </div>
         </div>
       </div>
+
+      {/* Community Users */}
+      <CommunityUsers />
 
       {/* Public Trips */}
       <LatestPublicTrips 

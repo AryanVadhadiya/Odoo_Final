@@ -189,6 +189,34 @@ router.delete('/saved-destinations/:destinationId', async (req, res) => {
   }
 });
 
+// @route   GET /api/users/community
+// @desc    Get all users for community page (excluding current user)
+// @access  Private
+router.get('/community', async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    
+    // Get all users except the current user
+    const users = await User.find({ 
+      _id: { $ne: currentUserId },
+      isActive: true 
+    })
+    .select('name avatar bio preferences savedDestinations createdAt lastLogin')
+    .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('Get community users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // @route   GET /api/users/stats
 // @desc    Get user statistics
 // @access  Private

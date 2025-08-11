@@ -103,6 +103,7 @@ export const userAPI = {
   addSavedDestination: (destinationData) => api.post('/users/saved-destinations', destinationData),
   removeSavedDestination: (destinationId) => api.delete(`/users/saved-destinations/${destinationId}`),
   getUserStats: () => api.get('/users/stats'),
+  getCommunityUsers: () => api.get('/users/community'),
   deleteAccount: () => api.delete('/users/account'),
 };
 
