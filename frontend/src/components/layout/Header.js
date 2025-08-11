@@ -33,7 +33,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 h-16 relative">
+    <header className="bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 h-16 relative z-30">
       {/* Header gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 via-secondary-500/10 to-accent-500/10 pointer-events-none"></div>
       

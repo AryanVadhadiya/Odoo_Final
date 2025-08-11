@@ -21,28 +21,65 @@ const BannerCarousel = () => {
 
   const [index, setIndex] = useState(0);
   const timerRef = useRef(null);
+  const containerRef = useRef(null);
+  const [naturalWidth, setNaturalWidth] = useState(null);
+  const [containerWidth, setContainerWidth] = useState(null);
 
+  // Auto-advance
   useEffect(() => {
     timerRef.current = setInterval(() => setIndex((i) => (i + 1) % banners.length), 4000);
     return () => clearInterval(timerRef.current);
   }, [banners.length]);
 
+  // Recalculate container width on resize based on image natural width
+  useEffect(() => {
+    const recalc = () => {
+      if (!containerRef.current) return;
+      const parentWidth = containerRef.current.parentElement?.clientWidth || 0;
+      const targetWidth = naturalWidth ? Math.min(naturalWidth, parentWidth) : parentWidth;
+      setContainerWidth(targetWidth);
+    };
+    recalc();
+    window.addEventListener('resize', recalc);
+    return () => window.removeEventListener('resize', recalc);
+  }, [naturalWidth]);
+
+  const handleImageLoad = (e) => {
+    const nw = e?.target?.naturalWidth;
+    if (nw && !naturalWidth) {
+      setNaturalWidth(nw);
+    }
+  };
+
+  // Pixel-based width for accurate slide sizing
+  const trackWidth = containerWidth ? containerWidth * banners.length : '100%';
+  const translateX = containerWidth ? -(index * containerWidth) : `-${index * 100}%`;
+
   return (
-    <div className="relative overflow-hidden rounded-xl border border-gray-200 shadow-soft">
+    <div
+      ref={containerRef}
+      className="relative overflow-hidden rounded-xl border border-gray-200 shadow-soft mx-auto z-0"
+      style={containerWidth ? { width: `${containerWidth}px` } : undefined}
+    >
       <div
         className="flex transition-transform duration-700"
-        style={{ transform: `translateX(-${index * 100}%)`, width: `${banners.length * 100}%` }}
+        style={{ transform: `translateX(${translateX}${typeof translateX === 'string' ? '' : 'px'})`, width: typeof trackWidth === 'number' ? `${trackWidth}px` : trackWidth }}
       >
         {banners.map((b) => (
-          <div key={b.id} className="w-full shrink-0">
+          <div
+            key={b.id}
+            className="shrink-0 flex items-center justify-center"
+            style={containerWidth ? { width: `${containerWidth}px` } : { width: '100%' }}
+          >
             {b.src ? (
               <img
                 src={b.src}
                 alt={`banner ${b.id}`}
-                className="h-56 md:h-72 w-full object-cover"
+                className="h-auto max-h-72 w-auto max-w-full object-contain"
+                onLoad={handleImageLoad}
               />
             ) : (
-              <div className="h-56 md:h-72 bg-gradient-to-r from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 text-lg font-semibold">
+              <div className="h-56 md:h-72 bg-gradient-to-r from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 text-lg font-semibold w-full">
                 Add image src/pages/img/i{b.id}
               </div>
             )}
