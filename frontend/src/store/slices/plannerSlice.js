@@ -161,13 +161,13 @@ const plannerSlice = createSlice({
     addToTimeline: (state, action) => {
       const { activityId, date, startTime } = action.payload;
       const availableActivities = state.availableActivities || [];
-      const activity = availableActivities.find(a => a.id === activityId);
-      
-      if (!activity) {
+      const activityIdx = availableActivities.findIndex(a => a.id === activityId);
+      if (activityIdx === -1) {
         state.error = 'Selected activity not found';
         return;
       }
-      
+      const activity = availableActivities[activityIdx];
+
       // Prepare item, tentative start time
       const newTimelineItem = {
         id: `${activityId}-${Date.now()}`,
@@ -182,7 +182,7 @@ const plannerSlice = createSlice({
         description: activity.description,
         imageUrl: activity.imageUrl
       };
-      
+
       // Prevent clashes: if conflict, move to next available slot on that date
       const timeline = state.timeline || [];
       if (hasTimeConflict(newTimelineItem, timeline)) {
@@ -200,9 +200,11 @@ const plannerSlice = createSlice({
           return;
         }
       }
-      
+
       if (!state.timeline) state.timeline = [];
       state.timeline.push(newTimelineItem);
+      // Remove from availableActivities
+      state.availableActivities.splice(activityIdx, 1);
       // Sort timeline by date and time
       state.timeline.sort((a, b) => {
         const dateA = new Date(a.scheduledDate + 'T' + a.startTime);
@@ -211,7 +213,7 @@ const plannerSlice = createSlice({
       });
       // Normalize times per day so the list is coherent
       normalizeTimesPerDay(state);
-  },
+    },
     removeFromTimeline: (state, action) => {
       const timelineId = action.payload;
       if (!state.timeline) state.timeline = [];
