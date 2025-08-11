@@ -385,4 +385,268 @@ router.put('/:tripId/destinations/reorder', [
   }
 });
 
+// @route   GET /api/itinerary/:tripId/basket
+// @desc    Get basket for a trip
+// @access  Private
+router.get('/:tripId/basket', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check authorization
+    if (trip.user.toString() !== req.user.id && 
+        !trip.collaborators.some(c => c.user.toString() === req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this trip'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: trip.basket || []
+    });
+  } catch (error) {
+    console.error('Get basket error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   PUT /api/itinerary/:tripId/basket
+// @desc    Update basket for a trip
+// @access  Private
+router.put('/:tripId/basket', [
+  body('activityIds')
+    .isArray()
+    .withMessage('Activity IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check authorization
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this trip'
+      });
+    }
+
+    const { activityIds } = req.body;
+    trip.basket = activityIds;
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      data: trip.basket
+    });
+  } catch (error) {
+    console.error('Update basket error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   PUT /api/itinerary/:tripId/days/:date/reorder
+// @desc    Reorder activities within a day
+// @access  Private
+router.put('/:tripId/days/:date/reorder', [
+  body('activityIds')
+    .isArray()
+    .withMessage('Activity IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check authorization
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this trip'
+      });
+    }
+
+    const { activityIds } = req.body;
+    const date = new Date(req.params.date);
+
+    // Update order for activities on this date
+    for (let i = 0; i < activityIds.length; i++) {
+      await Activity.findByIdAndUpdate(activityIds[i], {
+        dayOrder: i
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Activities reordered successfully'
+    });
+  } catch (error) {
+    console.error('Reorder activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   POST /api/itinerary/:tripId/days/:date/add
+// @desc    Add activity to a specific day
+// @access  Private
+router.post('/:tripId/days/:date/add', [
+  body('activityId')
+    .isMongoId()
+    .withMessage('Valid activity ID is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check authorization
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this trip'
+      });
+    }
+
+    const { activityId } = req.body;
+    const date = new Date(req.params.date);
+
+    // Get the activity
+    const activity = await Activity.findById(activityId);
+    if (!activity) {
+      return res.status(404).json({
+        success: false,
+        message: 'Activity not found'
+      });
+    }
+
+    // Get current day order
+    const dayActivities = await Activity.find({
+      trip: trip._id,
+      date: date
+    }).sort({ dayOrder: 1 });
+
+    const dayOrder = dayActivities.length;
+
+    // Update activity with new date and order
+    activity.date = date;
+    activity.dayOrder = dayOrder;
+    await activity.save();
+
+    res.status(200).json({
+      success: true,
+      data: activity
+    });
+  } catch (error) {
+    console.error('Add activity to day error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   DELETE /api/itinerary/:tripId/days/:date/remove/:activityId
+// @desc    Remove activity from a specific day
+// @access  Private
+router.delete('/:tripId/days/:date/remove/:activityId', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check authorization
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this trip'
+      });
+    }
+
+    const activity = await Activity.findById(req.params.activityId);
+    if (!activity) {
+      return res.status(404).json({
+        success: false,
+        message: 'Activity not found'
+      });
+    }
+
+    // Remove from day by setting date to null
+    activity.date = null;
+    activity.dayOrder = null;
+    await activity.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Activity removed from day successfully'
+    });
+  } catch (error) {
+    console.error('Remove activity from day error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router; 

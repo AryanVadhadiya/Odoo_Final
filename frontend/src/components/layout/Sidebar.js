@@ -12,7 +12,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Search
+  Search,
+  ClipboardList
 } from 'lucide-react';
 import { setSidebarOpen, toggleSidebarCollapsed } from '../../store/slices/uiSlice';
 
@@ -25,6 +26,7 @@ const Sidebar = () => {
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'My Trips', href: '/trips', icon: Map },
     { name: 'Create Trip', href: '/trips/create', icon: Plus },
+    { name: 'Trip Planner', href: '/planner', icon: ClipboardList },
     { name: 'Search Cities', href: '/cities', icon: Search },
     { name: 'Profile', href: '/profile', icon: User },
   ];

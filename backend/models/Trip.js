@@ -90,7 +90,8 @@ const tripSchema = new mongoose.Schema({
   collaborators: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: true
     },
     role: {
       type: String,
@@ -102,6 +103,18 @@ const tripSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  basket: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Activity'
+  }],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
   settings: {
     allowComments: {
       type: Boolean,

@@ -49,6 +49,10 @@ const activitySchema = new mongoose.Schema({
     type: Number, // in minutes
     required: true
   },
+  dayOrder: {
+    type: Number,
+    default: 0
+  },
   location: {
     name: {
       type: String,

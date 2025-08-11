@@ -13,7 +13,9 @@ import {
   Calendar
 } from 'lucide-react';
 import { searchCities, getAIRecommendations, aiSearchCity } from '../store/slices/citySlice';
+import { addStop, addToBasket, addCityAttractions } from '../store/slices/plannerSlice';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { toast } from 'react-hot-toast';
 
 const CitySearch = () => {
   const dispatch = useDispatch();
@@ -91,6 +93,24 @@ const CitySearch = () => {
         ? prev.interests.filter(i => i !== interest)
         : [...prev.interests, interest]
     }));
+  };
+
+  const handleAddToItinerary = (city) => {
+    // Add attractions to the planner
+    if (city.attractions && city.attractions.length > 0) {
+      dispatch(addCityAttractions({
+        cityName: city.name,
+        attractions: city.attractions
+      }));
+
+      // Add top attractions to basket
+      city.attractions.slice(0, 5).forEach((attraction, index) => {
+        const activityId = `city-${city.name}-attraction-${index}`;
+        dispatch(addToBasket(activityId));
+      });
+    }
+
+    toast.success(`${city.name} attractions added to your basket! Go to Planner to schedule them.`);
   };
 
   return (
@@ -194,13 +214,28 @@ const CitySearch = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {aiRecommendations.recommendations.map((city, index) => (
                 <div key={index} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
+                  {/* Image */}
+                  <div className="mb-4 rounded-lg overflow-hidden">
+                    <img
+                      src={city.imageUrl || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'}
+                      alt={city.city}
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
+                      }}
+                    />
+                  </div>
+
+                  {/* Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900">{city.city}</h3>
-                      <p className="text-gray-600 flex items-center">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {city.country}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="badge badge-secondary text-xs">{city.country}</span>
+                        {city.bestTime && (
+                          <span className="badge badge-primary text-xs">Best time: {city.bestTime}</span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center bg-secondary-100 px-2 py-1 rounded-full">
                       <Sparkles className="h-4 w-4 text-secondary-600 mr-1" />
@@ -208,45 +243,43 @@ const CitySearch = () => {
                     </div>
                   </div>
 
+                  {/* Info */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Daily Cost:</span>
                       <span className="font-semibold text-primary-600">${city.dailyCost}</span>
                     </div>
-                    
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Suggested Days:</span>
                       <span className="font-semibold">{city.suggestedDays} days</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Best Time:</span>
-                      <span className="font-semibold">{city.bestTime}</span>
+                  </div>
+
+                  {/* Activities */}
+                  {city.activities && city.activities.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Top Activities:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {city.activities.slice(0, 3).map((activity, idx) => (
+                          <span key={idx} className="badge badge-primary text-xs">
+                            {activity}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="mt-4">
-                    <h4 className="font-medium mb-2">Top Activities:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {city.activities?.slice(0, 3).map((activity, idx) => (
-                        <span key={idx} className="badge badge-primary text-xs">
-                          {activity}
-                        </span>
-                      ))}
+                  {/* Reasoning */}
+                  {city.reasoning && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-600">{city.reasoning}</p>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-600 italic">"{city.reasoning}"</p>
-                  </div>
-
+                  {/* Actions */}
                   <div className="mt-6 flex gap-2">
-                    <button className="btn-primary flex-1 text-sm">
-                      Add to Trip
-                    </button>
-                    <button className="btn-secondary text-sm">
-                      Learn More
-                    </button>
+                    <button className="btn-primary flex-1 text-sm">Learn More</button>
+                    <button className="btn-secondary text-sm">Add to Itinerary</button>
                   </div>
                 </div>
               ))}
@@ -359,10 +392,13 @@ const CitySearch = () => {
 
                   <div className="mt-6 flex gap-2">
                     <button className="btn-primary flex-1 text-sm">
-                      View All Attractions
+                      Learn More
                     </button>
-                    <button className="btn-secondary text-sm">
-                      Add to Trip
+                    <button 
+                      onClick={() => handleAddToItinerary(city)}
+                      className="btn-secondary text-sm"
+                    >
+                      Add to Itinerary
                     </button>
                   </div>
                 </div>
@@ -392,11 +428,11 @@ const CitySearch = () => {
                       {/* Attraction Image */}
                       <div className="mb-4 rounded-lg overflow-hidden">
                         <img 
-                          src={`https://images.unsplash.com/photo-${Math.random().toString(36).substring(7)}?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80`}
+                          src={attraction.imageUrl || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'}
                           alt={attraction.name}
                           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80';
+                            e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
                           }}
                         />
                       </div>
@@ -464,16 +500,16 @@ const CitySearch = () => {
 
                       {/* Additional Info */}
                       <div className="space-y-2 text-sm">
-                        {attraction.duration && (
+                        {(attraction.visitDuration || attraction.duration) && (
                           <div className="flex items-center text-gray-600">
                             <Clock className="h-4 w-4 mr-2" />
-                            <span>Duration: {attraction.duration}</span>
+                            <span>Duration: {attraction.visitDuration || attraction.duration}</span>
                           </div>
                         )}
-                        {attraction.bestTime && (
+                        {(attraction.bestTimeToVisit || attraction.bestTime) && (
                           <div className="flex items-center text-gray-600">
                             <Calendar className="h-4 w-4 mr-2" />
-                            <span>Best Time: {attraction.bestTime}</span>
+                            <span>Best Time: {attraction.bestTimeToVisit || attraction.bestTime}</span>
                           </div>
                         )}
                       </div>
@@ -483,8 +519,11 @@ const CitySearch = () => {
                         <button className="btn-primary flex-1 text-sm">
                           Learn More
                     </button>
-                    <button className="btn-secondary text-sm">
-                          Add to Itinerary
+                    <button 
+                      onClick={() => handleAddToItinerary({ name: attraction.name, country: 'N/A', attractions: [attraction] })}
+                      className="btn-secondary text-sm"
+                    >
+                      Add to Itinerary
                     </button>
                   </div>
                 </div>

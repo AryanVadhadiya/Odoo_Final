@@ -66,6 +66,14 @@ export const itineraryAPI = {
     api.delete(`/itinerary/${tripId}/destinations/${destinationId}`),
   reorderDestinations: (tripId, destinationIds) => 
     api.put(`/itinerary/${tripId}/destinations/reorder`, { destinationIds }),
+  getBasket: (tripId) => api.get(`/itinerary/${tripId}/basket`),
+  updateBasket: (tripId, activityIds) => api.put(`/itinerary/${tripId}/basket`, { activityIds }),
+  reorderDayActivities: (tripId, date, activityIds) => 
+    api.put(`/itinerary/${tripId}/days/${date}/reorder`, { activityIds }),
+  addActivityToDay: (tripId, date, activityId) => 
+    api.post(`/itinerary/${tripId}/days/${date}/add`, { activityId }),
+  removeActivityFromDay: (tripId, date, activityId) => 
+    api.delete(`/itinerary/${tripId}/days/${date}/remove/${activityId}`),
 };
 
 // Activity API
