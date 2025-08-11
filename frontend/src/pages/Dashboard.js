@@ -1,22 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp, DollarSign, Users, Clock, Star, MapPin, Calendar, Plus, ArrowRight } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { suggestionsAPI } from '../services/api';
+import TripCalendar from '../components/common/TripCalendar';
+import { fetchTrips } from '../store/slices/tripSlice';
 
 const Dashboard = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { trips } = useSelector((state) => state.trips);
+  const { trips, loading: tripsLoading } = useSelector((state) => state.trips);
   const [recommendedDestinations, setRecommendedDestinations] = useState([]);
   const [popularAttractions, setPopularAttractions] = useState([]);
   const [loadingDestinations, setLoadingDestinations] = useState(true);
   const [loadingAttractions, setLoadingAttractions] = useState(true);
 
   useEffect(() => {
-    // Load recommended destinations and popular attractions
+    // Load trips, recommended destinations and popular attractions
+    dispatch(fetchTrips());
     loadRecommendedDestinations();
     loadPopularAttractions();
-  }, []);
+  }, [dispatch]);
 
   const loadRecommendedDestinations = async () => {
     try {
@@ -77,12 +81,56 @@ const Dashboard = () => {
     }
   };
 
+  // Generate sample trips for demonstration if none exist
+  const sampleTrips = useMemo(() => {
+    if (trips && trips.length > 0) return trips;
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    return [
+      {
+        _id: 'sample-1',
+        name: 'PARIS TRIP',
+        startDate: new Date(currentYear, currentMonth, 4),
+        endDate: new Date(currentYear, currentMonth, 7),
+        status: 'planning',
+        budget: { total: 2500, spent: 0 }
+      },
+      {
+        _id: 'sample-2',
+        name: 'NYC - GETAWAY',
+        startDate: new Date(currentYear, currentMonth, 14),
+        endDate: new Date(currentYear, currentMonth, 16),
+        status: 'active',
+        budget: { total: 1800, spent: 1200 }
+      },
+      {
+        _id: 'sample-3',
+        name: 'JAPAN ADVENTURE',
+        startDate: new Date(currentYear, currentMonth, 16),
+        endDate: new Date(currentYear, currentMonth, 22),
+        status: 'planning',
+        budget: { total: 3500, spent: 0 }
+      },
+      {
+        _id: 'sample-4',
+        name: 'NYC GETAWAY',
+        startDate: new Date(currentYear, currentMonth, 28),
+        endDate: new Date(currentYear, currentMonth, 28),
+        status: 'planning',
+        budget: { total: 500, spent: 0 }
+      }
+    ];
+  }, [trips]);
+
   // Calculate financial statistics
   const financialStats = useMemo(() => {
-    if (!trips || trips.length === 0) return {};
+    if (!sampleTrips || sampleTrips.length === 0) return {};
 
-    const totalBudget = trips.reduce((sum, trip) => sum + (trip.budget?.total || 0), 0);
-    const totalSpent = trips.reduce((sum, trip) => sum + (trip.budget?.spent || 0), 0);
+    const totalBudget = sampleTrips.reduce((sum, trip) => sum + (trip.budget?.total || 0), 0);
+    const totalSpent = sampleTrips.reduce((sum, trip) => sum + (trip.budget?.spent || 0), 0);
     const remainingBudget = totalBudget - totalSpent;
     const budgetUsage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
     
@@ -102,7 +150,7 @@ const Dashboard = () => {
     breakdown.food = totalBudget * 0.1;
     breakdown.other = totalBudget * 0.05;
 
-    const averageBudget = trips.length > 0 ? totalBudget / trips.length : 0;
+    const averageBudget = sampleTrips.length > 0 ? totalBudget / sampleTrips.length : 0;
 
     return {
       totalBudget,
@@ -112,7 +160,7 @@ const Dashboard = () => {
       breakdown,
       averageBudget
     };
-  }, [trips]);
+  }, [sampleTrips]);
 
   // Chart data for cost breakdown
   const chartData = useMemo(() => {
@@ -138,20 +186,19 @@ const Dashboard = () => {
 
   // Get recent trips (last 6)
   const recentTrips = useMemo(() => {
-    if (!trips) return [];
-    return trips.slice(0, 6);
-  }, [trips]);
+    return sampleTrips.slice(0, 6);
+  }, [sampleTrips]);
 
   // Get trip status counts
   const tripStatusCounts = useMemo(() => {
-    if (!trips) return { planning: 0, active: 0, completed: 0 };
+    if (!sampleTrips) return { planning: 0, active: 0, completed: 0 };
     
-    return trips.reduce((counts, trip) => {
+    return sampleTrips.reduce((counts, trip) => {
       const status = trip.status || 'planning';
       counts[status] = (counts[status] || 0) + 1;
       return counts;
     }, { planning: 0, active: 0, completed: 0 });
-  }, [trips]);
+  }, [sampleTrips]);
 
   // Simple Chart Components
   const BudgetChart = ({ data }) => {
@@ -264,7 +311,7 @@ const Dashboard = () => {
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-6 w-6 text-purple-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">{trips?.length || 0}</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{sampleTrips?.length || 0}</h3>
             <p className="text-gray-600">Total Trips</p>
           </div>
         </div>
@@ -274,6 +321,9 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Calendar View - Prominently displayed */}
+          <TripCalendar trips={sampleTrips} />
+
           {/* Recent Trips */}
           <div className="card">
             <div className="card-header">
