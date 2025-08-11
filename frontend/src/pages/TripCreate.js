@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, MapPin, Calendar, Compass, DollarSign, Image as ImageIcon, AlignLeft, Globe } from 'lucide-react';
 import Select from 'react-select';
