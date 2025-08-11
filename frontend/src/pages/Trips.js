@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, MapPin, Calendar, Search, Filter } from 'lucide-react';
+import { MapPin, Calendar, Search, Plus } from 'lucide-react';
 
 const Trips = () => {
   const [search, setSearch] = useState('');
   const [groupBy, setGroupBy] = useState('none');
+  const [statusFilter, setStatusFilter] = useState('all'); // all | ongoing | upcoming | completed
   const [sortBy, setSortBy] = useState('recent');
 
   // Dummy data for now; can be replaced with store data
@@ -26,10 +27,13 @@ const Trips = () => {
       : allTrips.filter(
           (t) => t.name.toLowerCase().includes(q) || (t.desc || '').toLowerCase().includes(q)
         );
+    if (statusFilter !== 'all') {
+      list = list.filter((t) => t.status === statusFilter);
+    }
     if (sortBy === 'recent') list = [...list].sort((a, b) => new Date(b.start) - new Date(a.start));
     if (sortBy === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [allTrips, search, sortBy]);
+  }, [allTrips, search, statusFilter, sortBy]);
 
   const grouped = useMemo(() => {
     const mapping = { ongoing: [], upcoming: [], completed: [] };
@@ -49,13 +53,6 @@ const Trips = () => {
           <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
           <p className="text-gray-600">Manage and organize your travel adventures</p>
         </div>
-        <Link
-          to="/trips/create"
-          className="btn-primary inline-flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Trip
-        </Link>
       </div>
 
       {/* Controls */}
@@ -76,14 +73,17 @@ const Trips = () => {
             <option value="destination">Destination</option>
             <option value="month">Month</option>
           </select>
+          <select className="input md:w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">Filter: All</option>
+            <option value="ongoing">Filter: Ongoing</option>
+            <option value="upcoming">Filter: Upcoming</option>
+            <option value="completed">Filter: Completed</option>
+          </select>
           <select className="input md:w-48" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
             <option value="recent">Sort by: Most Recent</option>
             <option value="name">Sort by: Name</option>
           </select>
-          <Link to="/trips/create" className="btn-primary inline-flex items-center">
-            <Plus className="h-4 w-4 mr-2" />
-            New Trip
-          </Link>
+          {/* No primary action here; use sidebar quick actions */}
         </div>
       </div>
 

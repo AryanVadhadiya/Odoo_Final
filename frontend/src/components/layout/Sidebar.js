@@ -4,11 +4,9 @@ import { NavLink, Link } from 'react-router-dom';
 import { 
   Home, 
   Map, 
-  Calendar, 
   Plus, 
   User, 
-  Settings, 
-  BarChart3,
+  Users,
   X,
   ChevronLeft,
   ChevronRight
@@ -22,8 +20,8 @@ const Sidebar = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'My Trips', href: '/trips', icon: Map },
     { name: 'Create Trip', href: '/trips/create', icon: Plus },
+    { name: 'Community', href: '/community', icon: Users },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
@@ -119,18 +117,11 @@ const Sidebar = () => {
             </h3>
             <div className="mt-3 space-y-1">
               <Link
-                to="/trips/create"
-                className="group flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200"
-              >
-                <Plus className="mr-3 h-5 w-5" />
-                New Trip
-              </Link>
-              <Link
                 to="/trips"
                 className="group flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200"
               >
                 <Map className="mr-3 h-5 w-5" />
-                View All Trips
+                View Trips
               </Link>
             </div>
           </div>
