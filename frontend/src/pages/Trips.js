@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Calendar, Search, Plus } from 'lucide-react';
+import { MapPin, Calendar, Search, Plus, Edit, Eye, Trash2, MoreVertical } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTrips } from '../store/slices/tripSlice';
+import { tripAPI } from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const Trips = () => {
   const [search, setSearch] = useState('');
   const [groupBy, setGroupBy] = useState('none');
   const [statusFilter, setStatusFilter] = useState('all'); // all | ongoing | upcoming | completed
   const [sortBy, setSortBy] = useState('recent');
+  const [updatingStatus, setUpdatingStatus] = useState(null);
 
   const dispatch = useDispatch();
   const { trips, loading } = useSelector((state) => state.trips);
@@ -51,6 +54,114 @@ const Trips = () => {
     return mapping;
   }, [filteredTrips]);
 
+  const handleStatusUpdate = async (tripId, newStatus) => {
+    try {
+      setUpdatingStatus(tripId);
+      await tripAPI.updateTripStatus(tripId, newStatus);
+      // Refresh trips
+      dispatch(fetchTrips({ limit: 50 }));
+      toast.success('Trip status updated successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update trip status');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const handleDeleteTrip = async (tripId) => {
+    if (window.confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
+      try {
+        await tripAPI.deleteTrip(tripId);
+        dispatch(fetchTrips({ limit: 50 }));
+        toast.success('Trip deleted successfully');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to delete trip');
+      }
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      planning: { label: 'Upcoming', className: 'badge-primary' },
+      active: { label: 'Ongoing', className: 'badge-warning' },
+      completed: { label: 'Completed', className: 'badge-success' },
+      cancelled: { label: 'Cancelled', className: 'badge-secondary' }
+    };
+    
+    const config = statusConfig[status] || statusConfig.planning;
+    return <span className={`badge ${config.className}`}>{config.label}</span>;
+  };
+
+  const getStatusOptions = (currentStatus) => {
+    const allStatuses = ['planning', 'active', 'completed', 'cancelled'];
+    return allStatuses.filter(status => status !== currentStatus);
+  };
+
+  const TripCard = ({ trip }) => (
+    <div className="card hover:shadow-medium transition-shadow duration-200">
+      <div className="card-body">
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-900">{trip.name}</h3>
+          <div className="flex items-center gap-2">
+            {getStatusBadge(trip.status)}
+            <div className="relative">
+              <select
+                className="text-xs border rounded px-2 py-1 bg-white"
+                value=""
+                onChange={(e) => e.target.value && handleStatusUpdate(trip._id, e.target.value)}
+                disabled={updatingStatus === trip._id}
+              >
+                <option value="">Change Status</option>
+                {getStatusOptions(trip.status).map(status => (
+                  <option key={status} value={status}>
+                    {status === 'planning' ? 'Upcoming' : 
+                     status === 'active' ? 'Ongoing' : 
+                     status === 'completed' ? 'Completed' : 'Cancelled'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div className="space-y-2 text-sm text-gray-600 mb-3">
+          <div className="flex items-center">
+            <Calendar className="h-4 w-4 mr-2" />
+            {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+          </div>
+          <div className="flex items-center">
+            <MapPin className="h-4 w-4 mr-2" />
+            {trip.destinations?.length || 0} destination{(trip.destinations?.length || 0) > 1 ? 's' : ''}
+          </div>
+          {trip.budget?.total > 0 && (
+            <div className="flex items-center">
+              <span className="mr-2">💰</span>
+              ${trip.budget.total.toLocaleString()} {trip.budget.currency}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex space-x-2">
+          <Link to={`/trips/${trip._id}`} className="btn-secondary btn-sm flex-1 text-center flex items-center justify-center">
+            <Eye className="h-4 w-4 mr-1" />
+            View
+          </Link>
+          <Link to={`/trips/${trip._id}/edit`} className="btn-secondary btn-sm flex items-center justify-center">
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Link>
+          <button 
+            onClick={() => handleDeleteTrip(trip._id)}
+            className="btn-danger btn-sm flex items-center justify-center"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -59,6 +170,13 @@ const Trips = () => {
           <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
           <p className="text-gray-600">Manage and organize your travel adventures</p>
         </div>
+        <Link
+          to="/trips/create"
+          className="btn-primary inline-flex items-center"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create New Trip
+        </Link>
       </div>
 
       {/* Controls */}
@@ -89,7 +207,6 @@ const Trips = () => {
             <option value="recent">Sort by: Most Recent</option>
             <option value="name">Sort by: Name</option>
           </select>
-          {/* No primary action here; use sidebar quick actions */}
         </div>
       </div>
 
@@ -108,22 +225,7 @@ const Trips = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped.ongoing.map((t) => (
-                  <div key={t._id} className="card hover:shadow-medium transition-shadow duration-200">
-                    <div className="card-body">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
-                        <span className="badge badge-warning">Ongoing</span>
-                      </div>
-                      <div className="space-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
-                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{(t.destinations?.length || 0)} destination{(t.destinations?.length || 0) > 1 ? 's' : ''}</div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Link to={`/trips/${t._id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
-                        <Link to={`/trips/${t._id}/edit`} className="btn-secondary btn-sm">Edit</Link>
-                      </div>
-                    </div>
-                  </div>
+                  <TripCard key={t._id} trip={t} />
                 ))}
               </div>
             )}
@@ -143,22 +245,7 @@ const Trips = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped.upcoming.map((t) => (
-                  <div key={t._id} className="card hover:shadow-medium transition-shadow duration-200">
-                    <div className="card-body">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
-                        <span className="badge badge-primary">Upcoming</span>
-                      </div>
-                      <div className="space-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
-                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{(t.destinations?.length || 0)} destination{(t.destinations?.length || 0) > 1 ? 's' : ''}</div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Link to={`/trips/${t._id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
-                        <Link to={`/trips/${t._id}/edit`} className="btn-secondary btn-sm">Edit</Link>
-                      </div>
-                    </div>
-                  </div>
+                  <TripCard key={t._id} trip={t} />
                 ))}
               </div>
             )}
@@ -178,22 +265,7 @@ const Trips = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped.completed.map((t) => (
-                  <div key={t._id} className="card hover:shadow-medium transition-shadow duration-200">
-                    <div className="card-body">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
-                        <span className="badge badge-success">Completed</span>
-                      </div>
-                      <div className="space-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
-                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{(t.destinations?.length || 0)} destination{(t.destinations?.length || 0) > 1 ? 's' : ''}</div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Link to={`/trips/${t._id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
-                        <Link to={`/trips/${t._id}/edit`} className="btn-secondary btn-sm">Edit</Link>
-                      </div>
-                    </div>
-                  </div>
+                  <TripCard key={t._id} trip={t} />
                 ))}
               </div>
             )}
@@ -202,18 +274,20 @@ const Trips = () => {
       </div>
 
       {/* Empty state */}
-      <div className="text-center py-12">
-        <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No trips yet</h3>
-        <p className="text-gray-600 mb-4">Start planning your first adventure!</p>
-        <Link
-          to="/trips/create"
-          className="btn-primary inline-flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Your First Trip
-        </Link>
-      </div>
+      {!loading && filteredTrips.length === 0 && (
+        <div className="text-center py-12">
+          <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No trips found</h3>
+          <p className="text-gray-600 mb-4">Try adjusting your search or filters to find your trips.</p>
+          <Link
+            to="/trips/create"
+            className="btn-primary inline-flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Your First Trip
+          </Link>
+        </div>
+      )}
     </div>
   );
 };

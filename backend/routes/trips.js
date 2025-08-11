@@ -479,4 +479,57 @@ router.post('/:id/collaborators', [
   }
 });
 
+// @route   PATCH /api/trips/:id/status
+// @desc    Update trip status
+// @access  Private
+router.patch('/:id/status', [
+  body('status')
+    .isIn(['planning', 'active', 'completed', 'cancelled'])
+    .withMessage('Status must be planning, active, completed, or cancelled')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check ownership
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this trip'
+      });
+    }
+
+    const { status } = req.body;
+
+    // Update status
+    trip.status = status;
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      data: trip
+    });
+  } catch (error) {
+    console.error('Update trip status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router; 

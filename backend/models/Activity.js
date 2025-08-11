@@ -47,7 +47,7 @@ const activitySchema = new mongoose.Schema({
   },
   duration: {
     type: Number, // in minutes
-    required: true
+    default: 0
   },
   location: {
     name: {
@@ -146,7 +146,7 @@ activitySchema.pre('save', function(next) {
     const start = new Date(`2000-01-01T${this.startTime}:00`);
     const end = new Date(`2000-01-01T${this.endTime}:00`);
     if (end <= start) {
-      next(new Error('End time must be after start time'));
+      return next(new Error('End time must be after start time'));
     }
   }
   next();

@@ -250,15 +250,21 @@ const QuickAddActivity = ({ dest, onAdd, tripStart, tripEnd }) => {
   const [cost, setCost] = useState('');
 
   const handleAdd = () => {
-    if (!title || !date) return;
+    if (!title || !date) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
     if (new Date(date) < new Date(dest.arrivalDate) || new Date(date) > new Date(dest.departureDate)) {
       return toast.error('Activity date must be within the destination dates');
     }
+    
     const start = new Date(`2000-01-01T${startTime}:00`);
     const end = new Date(`2000-01-01T${endTime}:00`);
     if (end <= start) {
       return toast.error('End time must be after start time');
     }
+    
     onAdd(dest, {
       title,
       description: '',
@@ -269,7 +275,13 @@ const QuickAddActivity = ({ dest, onAdd, tripStart, tripEnd }) => {
       location: { name: `${dest.city}, ${dest.country}` },
       cost: { amount: Number(cost || 0), currency: 'USD' },
     });
+    
+    // Reset form
     setTitle('');
+    setDate('');
+    setStartTime('09:00');
+    setEndTime('10:00');
+    setCost('');
   };
 
   return (
@@ -280,7 +292,7 @@ const QuickAddActivity = ({ dest, onAdd, tripStart, tripEnd }) => {
       <input type="time" className="input" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
       <input type="number" className="input" min="0" placeholder="Cost (USD)" value={cost} onChange={(e) => setCost(e.target.value)} />
       <div className="md:col-span-6 flex justify-end">
-        <button className="btn-secondary" onClick={handleAdd}>Add Activity</button>
+        <button className="btn-primary" onClick={handleAdd}>Add Activity</button>
       </div>
     </div>
   );

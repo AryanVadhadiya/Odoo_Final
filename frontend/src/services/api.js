@@ -52,6 +52,7 @@ export const tripAPI = {
   createTrip: (tripData) => api.post('/trips', tripData),
   updateTrip: (tripId, tripData) => api.put(`/trips/${tripId}`, tripData),
   deleteTrip: (tripId) => api.delete(`/trips/${tripId}`),
+  updateTripStatus: (tripId, status) => api.patch(`/trips/${tripId}/status`, { status }),
   // Note: server mounts router at '/api/trips/public' and route path is '/public/:publicUrl'
   // So the effective path is '/api/trips/public/public/:publicUrl'
   getPublicTrip: (publicUrl) => api.get(`/trips/public/public/${publicUrl}`),
