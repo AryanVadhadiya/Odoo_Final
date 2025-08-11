@@ -117,7 +117,11 @@ router.post('/', [
   body('location.name')
     .trim()
     .notEmpty()
-    .withMessage('Location name is required')
+    .withMessage('Location name is required'),
+  body('cost.amount')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Activity cost must be a non-negative number')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -144,6 +148,37 @@ router.post('/', [
         success: false,
         message: 'Not authorized to add activities to this trip'
       });
+    }
+
+    // Budget validations
+    const amount = Number(req.body?.cost?.amount || 0);
+    if (amount < 0) {
+      return res.status(400).json({ success: false, message: 'Activity cost cannot be negative' });
+    }
+
+    const destCity = req.body.destination?.city;
+    const destCountry = req.body.destination?.country;
+    const destination = trip.destinations.find(d => d.city.toLowerCase() === String(destCity).toLowerCase() && d.country.toLowerCase() === String(destCountry).toLowerCase());
+
+    if (!destination) {
+      return res.status(400).json({ success: false, message: 'Destination for this activity is not part of the trip' });
+    }
+
+    // Sum existing activities costs for this destination
+    const existingForDest = await Activity.find({ trip: trip._id, 'destination.city': new RegExp(`^${destCity}$`, 'i'), 'destination.country': new RegExp(`^${destCountry}$`, 'i') });
+    const destCostTotal = existingForDest.reduce((sum, a) => sum + Number(a.cost?.amount || 0), 0);
+    if ((Number(destination.budget || 0) > 0) && (destCostTotal + amount > Number(destination.budget))) {
+      return res.status(400).json({ success: false, message: 'Activity cost exceeds the destination (section) budget' });
+    }
+
+    // Optional: trip-level fallback
+    const tripTotalBudget = Number(trip.budget?.total || 0);
+    if (tripTotalBudget > 0) {
+      const allActivities = await Activity.find({ trip: trip._id });
+      const currentTotal = allActivities.reduce((sum, a) => sum + Number(a.cost?.amount || 0), 0);
+      if (currentTotal + amount > tripTotalBudget) {
+        return res.status(400).json({ success: false, message: 'Activity cost exceeds the overall trip budget' });
+      }
     }
 
     const activity = await Activity.create({
@@ -180,7 +215,11 @@ router.put('/:id', [
   body('endTime')
     .optional()
     .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
-    .withMessage('End time must be in HH:MM format')
+    .withMessage('End time must be in HH:MM format'),
+  body('cost.amount')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Activity cost must be a non-negative number')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -208,6 +247,35 @@ router.put('/:id', [
         success: false,
         message: 'Not authorized to update this activity'
       });
+    }
+
+    // Budget validations
+    const nextAmount = req.body?.cost?.amount !== undefined ? Number(req.body.cost.amount) : Number(activity.cost?.amount || 0);
+    if (nextAmount < 0) {
+      return res.status(400).json({ success: false, message: 'Activity cost cannot be negative' });
+    }
+
+    const destCity = (req.body.destination?.city) || activity.destination.city;
+    const destCountry = (req.body.destination?.country) || activity.destination.country;
+    const destination = trip.destinations.find(d => d.city.toLowerCase() === String(destCity).toLowerCase() && d.country.toLowerCase() === String(destCountry).toLowerCase());
+
+    if (!destination) {
+      return res.status(400).json({ success: false, message: 'Destination for this activity is not part of the trip' });
+    }
+
+    const existingForDest = await Activity.find({ trip: trip._id, 'destination.city': new RegExp(`^${destCity}$`, 'i'), 'destination.country': new RegExp(`^${destCountry}$`, 'i') });
+    const destCostTotalExcluding = existingForDest.filter(a => a._id.toString() !== activity._id.toString()).reduce((sum, a) => sum + Number(a.cost?.amount || 0), 0);
+    if ((Number(destination.budget || 0) > 0) && (destCostTotalExcluding + nextAmount > Number(destination.budget))) {
+      return res.status(400).json({ success: false, message: 'Activity cost exceeds the destination (section) budget' });
+    }
+
+    const tripTotalBudget = Number(trip.budget?.total || 0);
+    if (tripTotalBudget > 0) {
+      const allActivities = await Activity.find({ trip: trip._id });
+      const currentTotalExcluding = allActivities.filter(a => a._id.toString() !== activity._id.toString()).reduce((sum, a) => sum + Number(a.cost?.amount || 0), 0);
+      if (currentTotalExcluding + nextAmount > tripTotalBudget) {
+        return res.status(400).json({ success: false, message: 'Activity cost exceeds the overall trip budget' });
+      }
     }
 
     activity = await Activity.findByIdAndUpdate(req.params.id, req.body, {

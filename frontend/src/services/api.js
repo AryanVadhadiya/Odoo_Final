@@ -111,6 +111,23 @@ export const budgetAPI = {
   exportBudget: (tripId) => api.get(`/budget/${tripId}/export`),
 };
 
+// Suggestions (Gemini) API placeholder (client-side)
+export const suggestionsAPI = {
+  getTopPlaces: async (cityQuery) => {
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    const prompt = `Return a JSON array of top 15 places/activities in ${cityQuery}. Each item must have: title, details (<=200 chars), approxCost (number in USD), rating (0-5), timings (string).`;
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    });
+    const data = await resp.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    try { return JSON.parse(text); } catch { return []; }
+  },
+};
+
 // Health check
 export const healthAPI = {
   check: () => api.get('/health'),

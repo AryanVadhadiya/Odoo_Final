@@ -58,7 +58,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/trips', auth, tripRoutes);
 app.use('/api/itinerary', auth, itineraryRoutes);
 app.use('/api/users', auth, userRoutes);
-app.use('/api/activities', activityRoutes);
+app.use('/api/activities', auth, activityRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/budget', auth, budgetRoutes);
 

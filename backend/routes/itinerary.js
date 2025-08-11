@@ -82,7 +82,11 @@ router.post('/:tripId/destinations', [
     .withMessage('Arrival date must be a valid date'),
   body('departureDate')
     .isISO8601()
-    .withMessage('Departure date must be a valid date')
+    .withMessage('Departure date must be a valid date'),
+  body('budget')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Budget must be a non-negative number')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -110,7 +114,7 @@ router.post('/:tripId/destinations', [
       });
     }
 
-    const { city, country, arrivalDate, departureDate } = req.body;
+    const { city, country, arrivalDate, departureDate, budget } = req.body;
 
     // Validate dates
     if (new Date(arrivalDate) >= new Date(departureDate)) {
@@ -153,7 +157,8 @@ router.post('/:tripId/destinations', [
       country,
       arrivalDate,
       departureDate,
-      order
+      order,
+      budget: budget ? Number(budget) : 0
     });
 
     await trip.save();
@@ -192,7 +197,11 @@ router.put('/:tripId/destinations/:destinationId', [
   body('departureDate')
     .optional()
     .isISO8601()
-    .withMessage('Departure date must be a valid date')
+    .withMessage('Departure date must be a valid date'),
+  body('budget')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Budget must be a non-negative number')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -229,13 +238,42 @@ router.put('/:tripId/destinations/:destinationId', [
       });
     }
 
-    const { city, country, arrivalDate, departureDate } = req.body;
+    const { city, country, arrivalDate, departureDate, budget } = req.body;
 
-    // Update fields
-    if (city) destination.city = city;
-    if (country) destination.country = country;
-    if (arrivalDate) destination.arrivalDate = arrivalDate;
-    if (departureDate) destination.departureDate = departureDate;
+    // Update fields (prepare tentative values for validation)
+    const nextCity = city || destination.city;
+    const nextCountry = country || destination.country;
+    const nextArrival = arrivalDate ? new Date(arrivalDate) : new Date(destination.arrivalDate);
+    const nextDeparture = departureDate ? new Date(departureDate) : new Date(destination.departureDate);
+
+    // Validate dates order
+    if (nextArrival >= nextDeparture) {
+      return res.status(400).json({ success: false, message: 'Departure date must be after arrival date' });
+    }
+
+    // Check within trip bounds
+    if (nextArrival < new Date(trip.startDate) || nextDeparture > new Date(trip.endDate)) {
+      return res.status(400).json({ success: false, message: 'Destination dates must be within trip dates' });
+    }
+
+    // Check overlap with other destinations
+    const hasOverlap = trip.destinations.some((d) => {
+      if (d._id.toString() === destination._id.toString()) return false;
+      const existingArrival = new Date(d.arrivalDate);
+      const existingDeparture = new Date(d.departureDate);
+      return nextArrival < existingDeparture && nextDeparture > existingArrival;
+    });
+
+    if (hasOverlap) {
+      return res.status(400).json({ success: false, message: 'Destination dates overlap with existing destinations' });
+    }
+
+    // Commit updates
+    destination.city = nextCity;
+    destination.country = nextCountry;
+    destination.arrivalDate = nextArrival;
+    destination.departureDate = nextDeparture;
+    if (budget !== undefined) destination.budget = Number(budget);
 
     // Validate dates if both are provided
     if (arrivalDate && departureDate && new Date(arrivalDate) >= new Date(departureDate)) {
@@ -363,13 +401,15 @@ router.put('/:tripId/destinations/reorder', [
     }
 
     // Reorder destinations
-    const reorderedDestinations = destinationIds.map((id, index) => {
-      const destination = trip.destinations.id(id);
-      destination.order = index;
-      return destination;
+    // Reorder in place according to provided order
+    const idToDest = new Map(trip.destinations.map(d => [d._id.toString(), d]));
+    trip.destinations = destinationIds.map((id, index) => {
+      const dest = idToDest.get(id);
+      dest.order = index;
+      return dest;
     });
-
-    trip.destinations = reorderedDestinations;
+    // Ensure order by index
+    trip.destinations.sort((a, b) => a.order - b.order);
     await trip.save();
 
     res.status(200).json({

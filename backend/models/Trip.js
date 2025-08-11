@@ -81,6 +81,11 @@ const tripSchema = new mongoose.Schema({
     order: {
       type: Number,
       required: true
+    },
+    budget: {
+      type: Number,
+      default: 0,
+      min: [0, 'Section budget cannot be negative']
     }
   }],
   tags: [{

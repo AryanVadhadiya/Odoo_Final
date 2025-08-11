@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, MapPin, Calendar, Compass, DollarSign, Image as ImageI
 import Select from 'react-select';
 import { useDispatch, useSelector } from 'react-redux';
 import { createTrip } from '../store/slices/tripSlice';
+import { itineraryAPI, activityAPI, suggestionsAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const TripCreate = () => {
@@ -13,30 +14,40 @@ const TripCreate = () => {
 
   const [tripName, setTripName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [coverPhoto, setCoverPhoto] = useState('');
   const [budgetTotal, setBudgetTotal] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [isPublic, setIsPublic] = useState(false);
+  const [selectedActivityCards, setSelectedActivityCards] = useState([]); // indices
 
-  const placeOptions = useMemo(
-    () => [
-      { value: 'delhi', label: 'Delhi, India' },
-      { value: 'mumbai', label: 'Mumbai, India' },
-      { value: 'bengaluru', label: 'Bengaluru, India' },
-      { value: 'goa', label: 'Goa, India' },
-      { value: 'hyderabad', label: 'Hyderabad, India' },
-      { value: 'paris', label: 'Paris, France' },
-      { value: 'tokyo', label: 'Tokyo, Japan' },
-      { value: 'newyork', label: 'New York, USA' },
-      { value: 'london', label: 'London, UK' },
-    ],
-    []
-  );
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   const canSubmit = Boolean(tripName.trim() && startDate && endDate);
+
+  const fetchSuggestions = async () => {
+    if (!selectedPlace.trim()) return;
+    try {
+      setSuggestionsLoading(true);
+      const list = await suggestionsAPI.getTopPlaces(selectedPlace.trim());
+      setSuggestions(Array.isArray(list) ? list.slice(0, 15) : []);
+    } catch (e) {
+      setSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  // Auto-fetch suggestions when place changes (debounced)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (selectedPlace.trim()) fetchSuggestions();
+    }, 500);
+    return () => clearTimeout(id);
+  }, [selectedPlace]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,10 +68,46 @@ const TripCreate = () => {
         // destinations: selectedPlace ? [{ city: selectedPlace.label.split(',')[0], country: selectedPlace.label.split(',')[1]?.trim() || '', arrivalDate: startDate, departureDate: endDate, order: 1 }] : undefined,
       };
       const res = await dispatch(createTrip(tripData)).unwrap();
-      toast.success('Trip created successfully');
       const newTripId = res.data?._id;
+      // Seed initial destination if a place was selected
+      if (newTripId && selectedPlace) {
+        const [city, countryRaw] = selectedPlace.split(',');
+        const country = (countryRaw || '').trim();
+        try {
+          await itineraryAPI.addDestination(newTripId, {
+            city: city.trim(),
+            country,
+            arrivalDate: startDate,
+            departureDate: endDate,
+            budget: tripData.budget?.total || 0,
+          });
+          // If user selected activities suggestions, add them now
+          if (selectedActivityCards.length > 0) {
+            const activities = selectedActivityCards.map((idx, i) => ({
+              trip: newTripId,
+              title: suggestions[idx]?.title || `Suggested Activity #${idx + 1}`,
+              description: suggestions[idx]?.details || `Auto-added from suggestions for ${selectedPlace}`,
+              type: 'sightseeing',
+              destination: { city: city.trim(), country },
+              date: startDate,
+              startTime: `${String(9 + i).padStart(2, '0')}:00`,
+              endTime: `${String(10 + i).padStart(2, '0')}:30`,
+              location: { name: selectedPlace },
+              cost: { amount: Number(suggestions[idx]?.approxCost || 0), currency },
+            }));
+            try {
+              await activityAPI.createBulkActivities(activities);
+            } catch (e) {
+              // ignore bulk errors
+            }
+          }
+        } catch (e) {
+          // non-blocking
+        }
+      }
+      toast.success('Trip created successfully');
       if (newTripId) {
-        navigate(`/trips/${newTripId}`);
+        navigate(`/trips/${newTripId}/itinerary`);
       } else {
         navigate('/trips');
       }
@@ -125,19 +172,16 @@ const TripCreate = () => {
             </div>
             {/* Select a place */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select a place</label>
-              <div className="flex items-center">
-                <MapPin className="h-5 w-5 text-primary-600 mr-2" />
-                <div className="flex-1">
-                  <Select
-                    classNamePrefix="react-select"
-                    options={placeOptions}
-                    placeholder="Search or select a destination"
-                    isClearable
-                    value={selectedPlace}
-                    onChange={(opt) => setSelectedPlace(opt)}
-                  />
-                </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Enter a place (City, Country)</label>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary-600" />
+                <input
+                  className="input flex-1"
+                  placeholder="e.g., Paris, France"
+                  value={selectedPlace}
+                  onChange={(e) => setSelectedPlace(e.target.value)}
+                />
+                {/* Suggestions auto-loads when place changes */}
               </div>
             </div>
 
@@ -247,36 +291,21 @@ const TripCreate = () => {
         </div>
       </div>
 
-      {/* Suggestions – dummy containers for now */}
+      {/* Suggestions via Gemini */}
       {selectedPlace && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-gray-900">Suggested places to visit in {selectedPlace.label}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Suggested places and activities in {selectedPlace}</h2>
             </div>
             <div className="card-body">
-              <p className="text-sm text-gray-600 mb-4">We’ll populate top sights based on your selection.</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-24 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700 text-sm">
-                    Placeholder
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-lg font-semibold text-gray-900">Suggested activities in {selectedPlace.label}</h2>
-            </div>
-            <div className="card-body">
-              <p className="text-sm text-gray-600 mb-4">Activities will appear here once logic is added.</p>
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-12 rounded-lg bg-gradient-to-r from-primary-50 to-primary-100 border border-primary-100 flex items-center px-4 text-primary-800">
-                    Activity placeholder #{i + 1}
-                  </div>
+              {!suggestionsLoading && suggestions.length === 0 && (
+                <p className="text-sm text-gray-600 mb-4">Click "Get Suggestions" to fetch top places.</p>
+              )}
+              {suggestionsLoading && <div className="text-sm text-gray-600 mb-4">Loading suggestions...</div>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {suggestions.map((s, i) => (
+                  <SuggestionCard key={i} item={s} currency={currency} selected={selectedActivityCards.includes(i)} onToggle={() => setSelectedActivityCards(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])} />
                 ))}
               </div>
             </div>
@@ -284,6 +313,23 @@ const TripCreate = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const SuggestionCard = ({ item, currency, selected, onToggle }) => {
+  return (
+    <button type="button" onClick={onToggle} className={`text-left border rounded-xl p-4 ${selected ? 'border-primary-400 bg-primary-50' : 'border-gray-200 bg-white'} hover:shadow-sm transition`}> 
+      <div className="flex items-start justify-between">
+        <div className="text-base font-semibold text-gray-900">{item.title}</div>
+        <div className="text-sm text-gray-700">{currency} {(Number(item.approxCost || 0)).toLocaleString()}</div>
+      </div>
+      <div className="text-sm text-gray-600 mt-1">{item.details}</div>
+      <div className="flex items-center justify-between text-xs text-gray-600 mt-2">
+        <div>Rating: {Number(item.rating || 0).toFixed(1)}/5</div>
+        <div>Timings: {item.timings || '-'}</div>
+      </div>
+      <div className={`mt-2 text-xs ${selected ? 'text-primary-700' : 'text-gray-500'}`}>{selected ? 'Selected (click to remove)' : 'Click to select'}</div>
+    </button>
   );
 };
 
