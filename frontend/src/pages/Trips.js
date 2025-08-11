@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Search, Plus } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchTrips } from '../store/slices/tripSlice';
 
 const Trips = () => {
   const [search, setSearch] = useState('');
@@ -8,39 +10,43 @@ const Trips = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // all | ongoing | upcoming | completed
   const [sortBy, setSortBy] = useState('recent');
 
-  // Dummy data for now; can be replaced with store data
-  const allTrips = useMemo(
-    () => [
-      { id: '1', name: 'Paris Adventure', status: 'ongoing', start: '2025-08-10', end: '2025-08-17', desc: 'A week-long exploration of the City of Light', destinations: 1 },
-      { id: '2', name: 'Tokyo Discovery', status: 'completed', start: '2025-06-02', end: '2025-06-10', desc: 'Tradition and technology in harmony', destinations: 1 },
-      { id: '3', name: 'New York City', status: 'upcoming', start: '2025-09-05', end: '2025-09-12', desc: 'Exploring Manhattan and beyond', destinations: 1 },
-      { id: '4', name: 'Goa Getaway', status: 'ongoing', start: '2025-08-12', end: '2025-08-15', desc: 'Beaches and sunsets', destinations: 2 },
-      { id: '5', name: 'London Highlights', status: 'upcoming', start: '2025-10-01', end: '2025-10-07', desc: 'Museums and markets', destinations: 2 },
-    ],
-    []
-  );
+  const dispatch = useDispatch();
+  const { trips, loading } = useSelector((state) => state.trips);
+
+  useEffect(() => {
+    if (!trips || trips.length === 0) {
+      dispatch(fetchTrips({ limit: 50 }));
+    }
+  }, [dispatch]);
 
   const filteredTrips = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const source = Array.isArray(trips) ? trips : [];
     let list = !q
-      ? allTrips
-      : allTrips.filter(
-          (t) => t.name.toLowerCase().includes(q) || (t.desc || '').toLowerCase().includes(q)
+      ? source
+      : source.filter(
+          (t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q)
         );
     if (statusFilter !== 'all') {
-      list = list.filter((t) => t.status === statusFilter);
+      // Map UI filters to backend statuses
+      const statusMap = {
+        ongoing: 'active',
+        upcoming: 'planning',
+        completed: 'completed',
+      };
+      list = list.filter((t) => t.status === statusMap[statusFilter]);
     }
-    if (sortBy === 'recent') list = [...list].sort((a, b) => new Date(b.start) - new Date(a.start));
+    if (sortBy === 'recent') list = [...list].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
     if (sortBy === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [allTrips, search, statusFilter, sortBy]);
+  }, [trips, search, statusFilter, sortBy]);
 
   const grouped = useMemo(() => {
     const mapping = { ongoing: [], upcoming: [], completed: [] };
     filteredTrips.forEach((t) => {
-      if (t.status === 'ongoing') mapping.ongoing.push(t);
-      else if (t.status === 'upcoming') mapping.upcoming.push(t);
-      else mapping.completed.push(t);
+      if (t.status === 'active') mapping.ongoing.push(t);
+      else if (t.status === 'planning') mapping.upcoming.push(t);
+      else if (t.status === 'completed') mapping.completed.push(t);
     });
     return mapping;
   }, [filteredTrips]);
@@ -95,24 +101,26 @@ const Trips = () => {
             <h2 className="text-lg font-semibold text-gray-900">Ongoing</h2>
           </div>
           <div className="card-body">
-            {grouped.ongoing.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 gap-3">{[...Array(3)].map((_, i) => (<div key={i} className="h-24 rounded-lg bg-gray-100 animate-pulse"/>))}</div>
+            ) : grouped.ongoing.length === 0 ? (
               <div className="text-gray-600">No ongoing trips.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped.ongoing.map((t) => (
-                  <div key={t.id} className="card hover:shadow-medium transition-shadow duration-200">
+                  <div key={t._id} className="card hover:shadow-medium transition-shadow duration-200">
                     <div className="card-body">
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
                         <span className="badge badge-warning">Ongoing</span>
                       </div>
                       <div className="space-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.start).toLocaleDateString()} - {new Date(t.end).toLocaleDateString()}</div>
-                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{t.destinations} destination{t.destinations > 1 ? 's' : ''}</div>
+                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
+                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{(t.destinations?.length || 0)} destination{(t.destinations?.length || 0) > 1 ? 's' : ''}</div>
                       </div>
                       <div className="flex space-x-2">
-                        <Link to={`/trips/${t.id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
-                        <Link to={`/trips/${t.id}/edit`} className="btn-secondary btn-sm">Edit</Link>
+                        <Link to={`/trips/${t._id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
+                        <Link to={`/trips/${t._id}/edit`} className="btn-secondary btn-sm">Edit</Link>
                       </div>
                     </div>
                   </div>
@@ -128,24 +136,26 @@ const Trips = () => {
             <h2 className="text-lg font-semibold text-gray-900">Upcoming</h2>
           </div>
           <div className="card-body">
-            {grouped.upcoming.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 gap-3">{[...Array(3)].map((_, i) => (<div key={i} className="h-24 rounded-lg bg-gray-100 animate-pulse"/>))}</div>
+            ) : grouped.upcoming.length === 0 ? (
               <div className="text-gray-600">No upcoming trips.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped.upcoming.map((t) => (
-                  <div key={t.id} className="card hover:shadow-medium transition-shadow duration-200">
+                  <div key={t._id} className="card hover:shadow-medium transition-shadow duration-200">
                     <div className="card-body">
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
                         <span className="badge badge-primary">Upcoming</span>
                       </div>
                       <div className="space-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.start).toLocaleDateString()} - {new Date(t.end).toLocaleDateString()}</div>
-                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{t.destinations} destination{t.destinations > 1 ? 's' : ''}</div>
+                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
+                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{(t.destinations?.length || 0)} destination{(t.destinations?.length || 0) > 1 ? 's' : ''}</div>
                       </div>
                       <div className="flex space-x-2">
-                        <Link to={`/trips/${t.id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
-                        <Link to={`/trips/${t.id}/edit`} className="btn-secondary btn-sm">Edit</Link>
+                        <Link to={`/trips/${t._id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
+                        <Link to={`/trips/${t._id}/edit`} className="btn-secondary btn-sm">Edit</Link>
                       </div>
                     </div>
                   </div>
@@ -161,24 +171,26 @@ const Trips = () => {
             <h2 className="text-lg font-semibold text-gray-900">Completed</h2>
           </div>
           <div className="card-body">
-            {grouped.completed.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 gap-3">{[...Array(3)].map((_, i) => (<div key={i} className="h-24 rounded-lg bg-gray-100 animate-pulse"/>))}</div>
+            ) : grouped.completed.length === 0 ? (
               <div className="text-gray-600">No completed trips.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped.completed.map((t) => (
-                  <div key={t.id} className="card hover:shadow-medium transition-shadow duration-200">
+                  <div key={t._id} className="card hover:shadow-medium transition-shadow duration-200">
                     <div className="card-body">
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="text-lg font-semibold text-gray-900">{t.name}</h3>
                         <span className="badge badge-success">Completed</span>
                       </div>
                       <div className="space-y-2 text-sm text-gray-600 mb-3">
-                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.start).toLocaleDateString()} - {new Date(t.end).toLocaleDateString()}</div>
-                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{t.destinations} destination{t.destinations > 1 ? 's' : ''}</div>
+                        <div className="flex items-center"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
+                        <div className="flex items-center"><MapPin className="h-4 w-4 mr-2" />{(t.destinations?.length || 0)} destination{(t.destinations?.length || 0) > 1 ? 's' : ''}</div>
                       </div>
                       <div className="flex space-x-2">
-                        <Link to={`/trips/${t.id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
-                        <Link to={`/trips/${t.id}/edit`} className="btn-secondary btn-sm">Edit</Link>
+                        <Link to={`/trips/${t._id}`} className="btn-secondary btn-sm flex-1 text-center">View</Link>
+                        <Link to={`/trips/${t._id}/edit`} className="btn-secondary btn-sm">Edit</Link>
                       </div>
                     </div>
                   </div>

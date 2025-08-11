@@ -35,6 +35,32 @@ router.get('/public/:publicUrl', async (req, res) => {
   }
 });
 
+// @route   GET /api/trips/public/public-feed
+// @desc    Get recent public trips feed
+// @access  Public
+router.get('/public-feed', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 12, 50);
+    const trips = await Trip.find({ isPublic: true })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('name description startDate endDate coverPhoto budget status publicUrl user')
+      .populate('user', 'name avatar');
+
+    res.status(200).json({
+      success: true,
+      count: trips.length,
+      data: trips,
+    });
+  } catch (error) {
+    console.error('Get public feed error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+});
+
 // @route   GET /api/trips
 // @desc    Get all trips for user
 // @access  Private
@@ -144,7 +170,19 @@ router.post('/', [
     .withMessage('Start date must be a valid date'),
   body('endDate')
     .isISO8601()
-    .withMessage('End date must be a valid date')
+    .withMessage('End date must be a valid date'),
+  body('budget.total')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Budget total must be a non-negative number'),
+  body('budget.currency')
+    .optional()
+    .isIn(['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'])
+    .withMessage('Invalid currency'),
+  body('isPublic')
+    .optional()
+    .isBoolean()
+    .withMessage('isPublic must be boolean')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -155,7 +193,7 @@ router.post('/', [
       });
     }
 
-    const { name, description, startDate, endDate, coverPhoto, tags } = req.body;
+    const { name, description, startDate, endDate, coverPhoto, tags, budget, isPublic } = req.body;
 
     // Validate dates
     if (new Date(startDate) >= new Date(endDate)) {
@@ -172,7 +210,13 @@ router.post('/', [
       startDate,
       endDate,
       coverPhoto,
-      tags
+      tags,
+      budget: budget ? {
+        total: Number(budget.total) || 0,
+        currency: budget.currency || 'USD',
+        breakdown: budget.breakdown || undefined
+      } : undefined,
+      isPublic: Boolean(isPublic)
     });
 
     res.status(201).json({

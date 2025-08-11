@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { MapPin, Calendar, Users, Globe, Eye } from 'lucide-react';
+import { tripAPI } from '../services/api';
 
 const PublicTrip = () => {
   const { publicUrl } = useParams();
@@ -9,25 +10,18 @@ const PublicTrip = () => {
   const [error] = useState(null);
 
   useEffect(() => {
-    // TODO: Fetch public trip data
-    // For now, show a placeholder
-    setTimeout(() => {
-      setTrip({
-        id: '1',
-        title: 'Sample Public Trip',
-        description: 'This is a sample public trip that anyone can view.',
-        startDate: '2024-06-01',
-        endDate: '2024-06-15',
-        destinations: [
-          { city: 'Paris', country: 'France', duration: 5 },
-          { city: 'Rome', country: 'Italy', duration: 4 },
-          { city: 'Barcelona', country: 'Spain', duration: 6 },
-        ],
-        isPublic: true,
-        createdAt: '2024-01-15',
-      });
-      setLoading(false);
-    }, 1000);
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await tripAPI.getPublicTrip(publicUrl);
+        setTrip(res.data?.data || null);
+      } catch (e) {
+        setTrip(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, [publicUrl]);
 
   if (loading) {
@@ -60,8 +54,8 @@ const PublicTrip = () => {
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">{trip.title}</h1>
-              <p className="mt-2 text-indigo-100">{trip.description}</p>
+               <h1 className="text-3xl font-bold">{trip.name}</h1>
+               {trip.description && <p className="mt-2 text-indigo-100">{trip.description}</p>}
             </div>
             <div className="flex items-center space-x-2 bg-white bg-opacity-20 px-3 py-1 rounded-full">
               <Eye className="w-4 h-4" />
@@ -87,7 +81,7 @@ const PublicTrip = () => {
               <MapPin className="w-5 h-5 text-indigo-600" />
               <div>
                 <p className="text-sm font-medium text-gray-500">Destinations</p>
-                <p className="text-gray-900">{trip.destinations.length} cities</p>
+                 <p className="text-gray-900">{trip.destinations?.length || 0} cities</p>
               </div>
             </div>
 
@@ -95,7 +89,7 @@ const PublicTrip = () => {
               <Globe className="w-5 h-5 text-indigo-600" />
               <div>
                 <p className="text-sm font-medium text-gray-500">Created</p>
-                <p className="text-gray-900">{new Date(trip.createdAt).toLocaleDateString()}</p>
+                 <p className="text-gray-900">{new Date(trip.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
           </div>
@@ -104,7 +98,7 @@ const PublicTrip = () => {
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Destinations</h2>
             <div className="space-y-4">
-              {trip.destinations.map((destination, index) => (
+              {trip.destinations?.map((destination, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
@@ -117,7 +111,7 @@ const PublicTrip = () => {
                       <h3 className="font-medium text-gray-900">
                         {destination.city}, {destination.country}
                       </h3>
-                      <p className="text-sm text-gray-600">{destination.duration} days</p>
+                      <p className="text-sm text-gray-600">{destination.arrivalDate && destination.departureDate ? `${new Date(destination.arrivalDate).toLocaleDateString()} - ${new Date(destination.departureDate).toLocaleDateString()}` : ''}</p>
                     </div>
                   </div>
                 </div>

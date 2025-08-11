@@ -1,5 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar, DollarSign, Plus, MapPin } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
+import { fetchTrip } from '../store/slices/tripSlice';
 
 const defaultSections = [
   {
@@ -26,7 +29,14 @@ const defaultSections = [
 ];
 
 const Itinerary = () => {
+  const dispatch = useDispatch();
+  const { tripId } = useParams();
+  const { currentTrip } = useSelector((state) => state.trips);
   const [sections, setSections] = useState(defaultSections);
+
+  useEffect(() => {
+    if (tripId) dispatch(fetchTrip(tripId));
+  }, [dispatch, tripId]);
 
   const totalBudget = useMemo(
     () => sections.reduce((sum, s) => sum + (Number(s.budget) || 0), 0),
@@ -60,7 +70,7 @@ const Itinerary = () => {
             <MapPin className="h-3.5 w-3.5 mr-1.5" />
             Itinerary
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Your Trip Itinerary</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{currentTrip?.name || 'Your Trip Itinerary'}</h1>
           <p className="text-gray-600">Organize your trip into clear sections with dates and budget.</p>
         </div>
         <div className="text-right">

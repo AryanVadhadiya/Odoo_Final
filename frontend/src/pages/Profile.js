@@ -244,7 +244,7 @@ const Profile = () => {
               <p className="text-gray-600">No preplanned trips yet.</p>
             ) : (
               <div className="space-y-4">
-                {preplannedTrips.map((t) => (
+                 {preplannedTrips.map((t) => (
                   <div key={t._id} className="border border-gray-200 rounded-xl p-4 bg-white/80">
                     <div className="flex items-start justify-between">
                       <div>
@@ -281,7 +281,7 @@ const Profile = () => {
               <p className="text-gray-600">No previous trips.</p>
             ) : (
               <div className="space-y-4">
-                {previousTrips.map((t) => (
+                 {previousTrips.map((t) => (
                   <div key={t._id} className="border border-gray-200 rounded-xl p-4 bg-white/80">
                     <div className="flex items-start justify-between">
                       <div>

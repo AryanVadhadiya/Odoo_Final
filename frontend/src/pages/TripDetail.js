@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Edit, Share, Calendar, MapPin, DollarSign } from 'lucide-react';
+import { fetchTrip } from '../store/slices/tripSlice';
 
 const TripDetail = () => {
   const { tripId } = useParams();
+  const dispatch = useDispatch();
+  const { currentTrip, tripLoading } = useSelector((state) => state.trips);
+
+  useEffect(() => {
+    if (tripId) {
+      dispatch(fetchTrip(tripId));
+    }
+  }, [dispatch, tripId]);
 
   return (
     <div className="space-y-6">
@@ -17,8 +27,10 @@ const TripDetail = () => {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Paris Adventure</h1>
-            <p className="text-gray-600">A week-long exploration of the City of Light</p>
+            <h1 className="text-2xl font-bold text-gray-900">{currentTrip?.name || 'Trip'}</h1>
+            {currentTrip?.description && (
+              <p className="text-gray-600">{currentTrip.description}</p>
+            )}
           </div>
         </div>
         <div className="flex space-x-2">
@@ -51,21 +63,21 @@ const TripDetail = () => {
                   <Calendar className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">Duration</p>
-                    <p className="text-sm text-gray-600">Mar 15 - Mar 22, 2024 (7 days)</p>
+                    <p className="text-sm text-gray-600">{currentTrip ? `${new Date(currentTrip.startDate).toLocaleDateString()} - ${new Date(currentTrip.endDate).toLocaleDateString()}` : '-'}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
                   <MapPin className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">Destinations</p>
-                    <p className="text-sm text-gray-600">1 city</p>
+                    <p className="text-sm text-gray-600">{currentTrip?.destinations?.length || 0} {((currentTrip?.destinations?.length || 0) === 1) ? 'city' : 'cities'}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
                   <DollarSign className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">Budget</p>
-                    <p className="text-sm text-gray-600">€2,500</p>
+                    <p className="text-sm text-gray-600">{currentTrip?.budget ? `${currentTrip.budget.currency} ${Number(currentTrip.budget.total || 0).toLocaleString()}` : '-'}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -74,7 +86,7 @@ const TripDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Status</p>
-                    <p className="text-sm text-gray-600">Planning</p>
+                    <p className="text-sm text-gray-600">{currentTrip?.status ? (currentTrip.status.charAt(0).toUpperCase() + currentTrip.status.slice(1)) : '-'}</p>
                   </div>
                 </div>
               </div>
@@ -95,19 +107,17 @@ const TripDetail = () => {
               </div>
             </div>
             <div className="card-body">
-              <div className="space-y-4">
-                <div className="border-l-4 border-primary-500 pl-4">
-                  <h3 className="font-medium text-gray-900">Day 1 - Arrival in Paris</h3>
-                  <p className="text-sm text-gray-600 mt-1">Check-in and explore the neighborhood</p>
-                </div>
-                <div className="border-l-4 border-primary-500 pl-4">
-                  <h3 className="font-medium text-gray-900">Day 2 - Eiffel Tower</h3>
-                  <p className="text-sm text-gray-600 mt-1">Visit the iconic symbol of Paris</p>
-                </div>
-                <div className="border-l-4 border-primary-500 pl-4">
-                  <h3 className="font-medium text-gray-900">Day 3 - Louvre Museum</h3>
-                  <p className="text-sm text-gray-600 mt-1">Explore the world's largest art museum</p>
-                </div>
+              <div className="space-y-2 text-sm text-gray-600">
+                {currentTrip?.destinations?.length ? (
+                  currentTrip.destinations.map((d, idx) => (
+                    <div key={idx} className="border-l-4 border-primary-500 pl-4">
+                      <h3 className="font-medium text-gray-900">{d.city}, {d.country}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{new Date(d.arrivalDate).toLocaleDateString()} - {new Date(d.departureDate).toLocaleDateString()}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500">No itinerary yet.</div>
+                )}
               </div>
             </div>
           </div>
@@ -153,11 +163,11 @@ const TripDetail = () => {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Activities Planned</span>
-                  <span className="text-sm font-medium text-gray-900">12</span>
+                  <span className="text-sm font-medium text-gray-900">{currentTrip?.activities?.length || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Budget Used</span>
-                  <span className="text-sm font-medium text-gray-900">€1,200</span>
+                  <span className="text-sm font-medium text-gray-900">-</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Days Remaining</span>

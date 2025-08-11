@@ -1,5 +1,69 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Users, Search, MapPin, ShieldCheck, ShieldOff, Calendar } from 'lucide-react';
+import { tripAPI } from '../services/api';
+
+const LatestPublicTrips = () => {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await tripAPI.getPublicFeed({ limit: 9 });
+        setTrips(res.data?.data || []);
+      } catch (e) {
+        setTrips([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h2 className="text-lg font-semibold text-gray-900">Latest Public Trips</h2>
+        </div>
+        <div className="card-body grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-28 rounded-lg bg-gray-100 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2 className="text-lg font-semibold text-gray-900">Latest Public Trips</h2>
+      </div>
+      <div className="card-body">
+        {trips.length === 0 ? (
+          <div className="text-gray-600">No public trips yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {trips.map((t) => (
+              <a key={t._id} href={`/public-trip/${t.publicUrl}`} className="block card hover:shadow-medium transition-shadow duration-200">
+                <div className="card-body">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-base font-semibold text-gray-900">{t.name}</h3>
+                    <span className="badge">{t.budget?.currency} {Number(t.budget?.total || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="text-sm text-gray-600 flex items-center mb-1"><Calendar className="h-4 w-4 mr-2" />{new Date(t.startDate).toLocaleDateString()} - {new Date(t.endDate).toLocaleDateString()}</div>
+                  <div className="text-sm text-gray-600">By {t.user?.name || 'Traveler'}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Community = () => {
   const [search, setSearch] = useState('');
@@ -88,6 +152,9 @@ const Community = () => {
           </select>
         </div>
       </div>
+
+      {/* Latest Public Trips */}
+      <LatestPublicTrips />
 
       {/* Sections */}
       <div className="space-y-6">

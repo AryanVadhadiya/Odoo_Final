@@ -52,7 +52,10 @@ export const tripAPI = {
   createTrip: (tripData) => api.post('/trips', tripData),
   updateTrip: (tripId, tripData) => api.put(`/trips/${tripId}`, tripData),
   deleteTrip: (tripId) => api.delete(`/trips/${tripId}`),
-  getPublicTrip: (publicUrl) => api.get(`/trips/public/${publicUrl}`),
+  // Note: server mounts router at '/api/trips/public' and route path is '/public/:publicUrl'
+  // So the effective path is '/api/trips/public/public/:publicUrl'
+  getPublicTrip: (publicUrl) => api.get(`/trips/public/public/${publicUrl}`),
+  getPublicFeed: (params) => api.get('/trips/public/public-feed', { params }),
   addCollaborator: (tripId, collaboratorData) => api.post(`/trips/${tripId}/collaborators`, collaboratorData),
 };
 
