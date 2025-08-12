@@ -65,6 +65,7 @@ const sendTokenResponse = (user, statusCode, res) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+  role: user.role,
         preferences: user.preferences
       }
     });
@@ -213,6 +214,7 @@ router.get('/me', auth, async (req, res) => {
         profilePicture: user.profilePicture,
         bio: user.bio,
         location: user.location,
+  role: user.role,
         preferences: user.preferences,
         savedDestinations: user.savedDestinations,
         emailVerified: user.emailVerified,

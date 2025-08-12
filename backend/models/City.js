@@ -89,7 +89,20 @@ const citySchema = new mongoose.Schema({
     cost: {
       type: Number,
       min: 0
-    }
+    },
+    costCurrency: {
+      type: String,
+      trim: true
+    },
+    bestTimeToVisit: {
+      type: String,
+      trim: true
+    },
+    visitDuration: {
+      type: String,
+      trim: true
+    },
+    highlights: [{ type: String, trim: true }]
   }],
   transportation: {
     airport: {

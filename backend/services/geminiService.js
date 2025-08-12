@@ -266,12 +266,14 @@ class GeminiService {
     }
   }
 
-  async generateCityData(cityName) {
+  async generateCityData(cityName, opts = {}) {
     if (!this.genAI) {
       throw new Error('Gemini API not configured');
     }
+    const retryCount = opts.retryCount || 0;
+    const extra = retryCount > 0 ? `\nCRITICAL ADDITIONAL REQUIREMENTS (Retry #${retryCount}):\n- Eliminate any generic placeholder attraction names like '${cityName} Fort' or '${cityName} Market' unless they are the widely recognized proper names (e.g., 'Shaniwar Wada', 'Aga Khan Palace').\n- All attraction names must be unique and famous / notable.\n- Do NOT repeat any attraction names.\n- If you previously returned fewer than 15, expand to 15 with additional real attractions.\n` : '';
 
-    const prompt = `Generate comprehensive data for the city "${cityName}" in the following JSON format. Use real, accurate information and include EXACTLY 15 ATTRACTIONS with detailed descriptions, costs, and ratings:
+    const prompt = `Generate comprehensive data for the city "${cityName}" in the following JSON format. Use real, accurate information and include EXACTLY 15 ATTRACTIONS with detailed descriptions, costs, and ratings:${extra}
 
     {
       "name": "City Name",
@@ -350,7 +352,7 @@ class GeminiService {
     12. Make sure all data is realistic and helpful for travelers
     13. For attractions, include famous landmarks, museums, parks, shopping areas, and cultural sites
     14. Each attraction should have a detailed description explaining why it's worth visiting
-    15. Include best time to visit and recommended duration for each attraction`;
+  15. Include best time to visit and recommended duration for each attraction\n16. All attraction names must be unique (case-insensitive)`;
 
     try {
       const result = await this.model.generateContent(prompt);
@@ -389,6 +391,42 @@ class GeminiService {
     } catch (error) {
       console.error('Gemini API Error:', error);
       throw new Error('Failed to generate city data');
+    }
+  }
+
+  async generateCityAttractions(cityName, opts = {}) {
+    if (!this.genAI) throw new Error('Gemini API not configured');
+    const retry = opts.retry || 0;
+    const extra = retry > 0 ? `\nRETRY #${retry}: Ensure all 10 attractions are unique, well-known, and avoid generic placeholders like '${cityName} Fort' unless that is the official historic site name.` : '';
+    const prompt = `List EXACTLY 10 famous attractions for ${cityName}. Provide JSON only in this structure:\n{ "attractions": [ { "name": "", "category": "landmark|museum|park|cultural|historical|shopping|entertainment|nature", "description": "", "estimatedCost": 0, "costCurrency": "USD or INR", "bestTime": "", "visitDuration": "2-3 hours", "highlights": ["",""], "rating": 4.5 } ] }\nRules:\n- Only real, notable places (e.g., Red Fort, Chandni Chowk, Qutub Minar)\n- Unique names, no duplicates (case-insensitive)\n- estimatedCost numeric (typical entry or average spend)\n- costCurrency: INR for Indian cities, else USD\n- rating between 3.5 and 5\n- Avoid filler text.\n${extra}`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON returned');
+      const data = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(data.attractions)) throw new Error('Invalid attractions array');
+      // Normalize
+      data.attractions = data.attractions.map(a => ({
+        name: a.name,
+        type: a.category || a.type || 'landmark',
+        description: a.description,
+        cost: a.estimatedCost ?? a.cost ?? null,
+        costCurrency: a.costCurrency || null,
+        bestTimeToVisit: a.bestTime || a.bestTimeToVisit || null,
+        visitDuration: a.visitDuration || null,
+        highlights: Array.isArray(a.highlights) ? a.highlights.slice(0,3) : [],
+        rating: a.rating || null
+      })).filter(a => a.name);
+      // Uniqueness check
+      const names = data.attractions.map(a => a.name.toLowerCase());
+      const unique = new Set(names);
+      if (data.attractions.length !== 10 || unique.size < 10) {
+        if (retry < 2) return this.generateCityAttractions(cityName, { retry: retry + 1 });
+      }
+      return data.attractions.slice(0,10);
+    } catch (e) {
+      throw new Error('Failed to generate city attractions');
     }
   }
 }

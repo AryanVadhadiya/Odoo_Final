@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { getCurrentUser } from '../store/slices/authSlice';
 import { toast } from 'react-hot-toast';
 import { adminAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -24,7 +26,11 @@ import {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { user, isAuthenticated } = useSelector(state => state.auth);
   const [loading, setLoading] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  const [pwError, setPwError] = useState('');
   const [stats, setStats] = useState(null);
   const [popularCities, setPopularCities] = useState([]);
   const [popularActivities, setPopularActivities] = useState([]);
@@ -33,8 +39,10 @@ const AdminDashboard = () => {
   const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user?.role === 'admin') {
+      fetchData();
+    }
+  }, [user]);
 
   const fetchData = async () => {
     try {
@@ -92,6 +100,54 @@ const AdminDashboard = () => {
   const goToDashboard = () => {
     navigate('/dashboard');
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Please log in first.</p>
+      </div>
+    );
+  }
+
+  // Password gate if not admin
+  if (user && user.role !== 'admin') {
+    const submitGate = async (e) => {
+      e.preventDefault();
+      setPwError('');
+      const pass = e.target.elements.adminPass.value;
+      if (!pass) return;
+      try {
+        setPromoting(true);
+        await adminAPI.promote(pass);
+        await dispatch(getCurrentUser());
+        toast.success('Admin access granted');
+      } catch (err) {
+        setPwError('Invalid password');
+      } finally {
+        setPromoting(false);
+      }
+    };
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-md shadow-sm rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center mb-4 space-x-3">
+            <Shield className="h-8 w-8 text-blue-600" />
+            <h1 className="text-2xl font-bold text-gray-900">Admin Access</h1>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">Enter the admin password to unlock the dashboard.</p>
+          <form onSubmit={submitGate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="adminPass">Password</label>
+              <input id="adminPass" name="adminPass" type="password" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="odoo@admin" disabled={promoting} required />
+            </div>
+            {pwError && <div className="text-sm text-red-600">{pwError}</div>}
+            <button type="submit" disabled={promoting} className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60">{promoting ? 'Verifying...' : 'Unlock'}</button>
+          </form>
+          <p className="mt-4 text-xs text-gray-500 text-center">This action elevates your account to admin.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -18,6 +18,44 @@ const checkAdmin = async (req, res, next) => {
   }
 };
 
+// @route   POST /api/admin/promote
+// @desc    Promote the authenticated user to admin using a shared password gate
+// @access  Private
+router.post('/promote', auth, async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    const expected = process.env.ADMIN_GATE_PASSWORD || 'odoo@admin';
+
+    if (!password || password !== expected) {
+      return res.status(401).json({ success: false, message: 'Invalid admin password' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save();
+    }
+
+    return res.json({
+      success: true,
+      message: 'User promoted to admin',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error promoting user to admin:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // @route   GET /api/admin/stats
 // @desc    Get platform statistics
 // @access  Private (Admin only)
@@ -56,9 +94,9 @@ router.get('/stats', auth, checkAdmin, async (req, res) => {
       }
     });
 
-    // Trip status counts
-    const upcomingTrips = await Trip.countDocuments({ status: 'upcoming' });
-    const ongoingTrips = await Trip.countDocuments({ status: 'ongoing' });
+  // Trip status counts (map to existing schema values: planning, active, completed)
+  const upcomingTrips = await Trip.countDocuments({ status: 'planning' });
+  const ongoingTrips = await Trip.countDocuments({ status: 'active' });
     const completedTrips = await Trip.countDocuments({ status: 'completed' });
 
     // Calculate month-over-month change
@@ -283,6 +321,7 @@ router.get('/export/:type', auth, checkAdmin, async (req, res) => {
     const { type } = req.params;
     let data = [];
     let headers = [];
+    const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB') : ''; // DD/MM/YYYY
 
     switch (type) {
       case 'users':
@@ -293,7 +332,7 @@ router.get('/export/:type', auth, checkAdmin, async (req, res) => {
       case 'trips':
         data = await Trip.find({})
           .populate('user', 'name email')
-          .select('title destination startDate endDate budget status createdAt user');
+          .select('name destinations startDate endDate budget status createdAt user');
         headers = ['Title', 'User', 'Destination', 'Start Date', 'End Date', 'Budget', 'Status', 'Created At'];
         break;
       
@@ -324,18 +363,24 @@ router.get('/export/:type', auth, checkAdmin, async (req, res) => {
           ];
           break;
         
-        case 'trips':
+        case 'trips': {
+          const firstDest = Array.isArray(item.destinations) && item.destinations.length > 0
+            ? item.destinations[0]
+            : null;
+          const destStr = firstDest ? `${firstDest.city}, ${firstDest.country}` : '';
+          const budgetStr = item.budget ? JSON.stringify(item.budget) : '';
           row = [
-            item.title || '',
+            item.name || '',
             item.user ? item.user.name : '',
-            item.destination ? `${item.destination.city}, ${item.destination.country}` : '',
-            item.startDate ? item.startDate.toISOString().split('T')[0] : '',
-            item.endDate ? item.endDate.toISOString().split('T')[0] : '',
-            item.budget || '',
+            destStr,
+            fmt(item.startDate).replace(/\//g,'-'),
+            fmt(item.endDate).replace(/\//g,'-'),
+            budgetStr,
             item.status || '',
-            item.createdAt ? item.createdAt.toISOString().split('T')[0] : ''
+            fmt(item.createdAt).replace(/\//g,'-')
           ];
           break;
+        }
         
         case 'activities':
           row = [

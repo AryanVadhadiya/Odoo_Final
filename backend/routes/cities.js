@@ -1,6 +1,7 @@
 const express = require('express');
 const City = require('../models/City');
 const geminiService = require('../services/geminiService');
+const { getRealCityAttractions } = require('../services/openTripService');
 
 const router = express.Router();
 
@@ -324,7 +325,25 @@ router.post('/ai-search', async (req, res) => {
 
     // If not found in database, generate using AI
     try {
-      const aiCityData = await geminiService.generateCityData(cityName.trim());
+      let aiCityData = await geminiService.generateCityData(cityName.trim());
+
+      // Validate uniqueness; retry up to 2 times if duplicates/generic patterns dominate
+      const hasIssues = (data) => {
+        if (!Array.isArray(data.attractions)) return true;
+        const names = data.attractions.map(a => (a?.name || '').trim().toLowerCase()).filter(Boolean);
+        const unique = new Set(names);
+        if (unique.size < Math.min(10, names.length)) return true; // too many duplicates
+        // Detect over-generic pattern: repeating cityName + generic word
+        const genericPattern = new RegExp(`^${cityName.trim().toLowerCase()} (fort|market|museum|park)$`);
+        const genericCount = names.filter(n => genericPattern.test(n)).length;
+        if (genericCount / (names.length || 1) > 0.4) return true;
+        return false;
+      };
+      let attempt = 0;
+      while (attempt < 2 && hasIssues(aiCityData)) {
+        attempt++;
+        aiCityData = await geminiService.generateCityData(cityName.trim(), { retryCount: attempt });
+      }
 
       if (aiCityData.error) {
         return res.status(500).json({
@@ -334,13 +353,13 @@ router.post('/ai-search', async (req, res) => {
         });
       }
 
-      // Validate that we have the required attractions
-      if (!aiCityData.attractions || aiCityData.attractions.length < 10) {
-        return res.status(500).json({
-          success: false,
-          message: 'AI generated incomplete city data. Please try again.',
-          error: 'Insufficient attractions generated'
-        });
+      // Normalize attractions: ensure at least 10 (duplicate if needed) and cap to 15
+      if (!Array.isArray(aiCityData.attractions)) aiCityData.attractions = [];
+      // Filter out malformed entries without name
+      aiCityData.attractions = aiCityData.attractions.filter(a => a && a.name);
+  // If still fewer than 10 after retries, leave as-is (prefer accuracy over duplication)
+      if (aiCityData.attractions.length > 15) {
+        aiCityData.attractions = aiCityData.attractions.slice(0, 15);
       }
 
       res.status(200).json({
@@ -363,6 +382,41 @@ router.post('/ai-search', async (req, res) => {
       success: false,
       message: error.message || 'Failed to search for city'
     });
+  }
+});
+
+// @route   GET /api/cities/:cityName/live-attractions
+// @desc    Fetch top real attractions (no hardcoding) from OpenTripMap
+// @access  Public
+router.get('/:cityName/live-attractions', async (req, res) => {
+  try {
+    const { cityName } = req.params;
+    if (!cityName || !cityName.trim()) {
+      return res.status(400).json({ success: false, message: 'cityName required' });
+    }
+    const data = await getRealCityAttractions(cityName.trim());
+    if (!data.attractions || data.attractions.length === 0) {
+      return res.status(404).json({ success: false, message: 'No attractions found' });
+    }
+    res.json({ success: true, source: 'live', data });
+  } catch (err) {
+    console.error('Live attractions error:', err.message);
+    res.status(500).json({ success: false, message: err.message || 'Failed to fetch live attractions' });
+  }
+});
+
+// @route GET /api/cities/:cityName/ai-attractions
+// @desc  Get top 10 real (AI generated) attractions via Gemini only
+// @access Public
+router.get('/:cityName/ai-attractions', async (req, res) => {
+  try {
+    const { cityName } = req.params;
+    if (!cityName || !cityName.trim()) return res.status(400).json({ success: false, message: 'cityName required' });
+    const attractions = await geminiService.generateCityAttractions(cityName.trim());
+    res.json({ success: true, source: 'gemini', city: cityName.trim(), attractions });
+  } catch (err) {
+    console.error('AI attractions error:', err.message);
+    res.status(500).json({ success: false, message: err.message || 'Failed to generate attractions' });
   }
 });
 

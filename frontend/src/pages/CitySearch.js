@@ -14,10 +14,12 @@ import {
   Calendar
 } from 'lucide-react';
 import { searchCities, getAIRecommendations, aiSearchCity } from '../store/slices/citySlice';
+import { cityAPI } from '../services/api';
 import { addStop, addToBasket, addCityAttractions } from '../store/slices/plannerSlice';
 import { setCurrentCity, addPlaceToCurrentCity } from '../store/slices/tripBuilderSlice';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
+import { imageAPI } from '../services/api';
 
 const CitySearch = () => {
   const dispatch = useDispatch();
@@ -39,6 +41,10 @@ const CitySearch = () => {
     startLocation: '',
     travelStyle: 'balanced'
   });
+  const [imageCache, setImageCache] = useState({}); // { cityName: { url, credit } }
+  const [aiAttractions, setAIAttractions] = useState(null);
+  const [aiAttrLoading, setAIAttrLoading] = useState(false);
+  const [aiAttrError, setAIAttrError] = useState(null);
 
   const interests = [
     'Culture & History', 'Food & Cuisine', 'Adventure Sports', 'Nightlife',
@@ -67,6 +73,37 @@ const CitySearch = () => {
       return () => clearTimeout(timer);
     }
   }, [searchQuery, dispatch]);
+
+  // Fetch Gemini AI attractions (top 10) for a single city result
+  useEffect(() => {
+    const city = (cities && cities.length === 1) ? cities[0] : null;
+    if (!city) { setAIAttractions(null); return; }
+    const name = city.name || city.city;
+    if (!name) return;
+    setAIAttrLoading(true); setAIAttrError(null);
+    cityAPI.getAIAttractions(name)
+      .then(res => {
+        if (res.data?.success) setAIAttractions(res.data.attractions || []);
+        else setAIAttrError(res.data?.message || 'Failed to load attractions');
+      })
+      .catch(err => setAIAttrError(err.response?.data?.message || err.message))
+      .finally(() => setAIAttrLoading(false));
+  }, [cities]);
+
+  // Fetch Unsplash image for a city name (memoized in state cache)
+  const fetchCityImage = async (name) => {
+    if (!name || imageCache[name]) return;
+    try {
+      const { data } = await imageAPI.search(name);
+      if (data?.success && data.photo?.url) {
+  setImageCache(prev => ({ ...prev, [name]: { url: data.photo.url, credit: data.photo.credit, source: data.photo.source } }));
+      } else {
+        setImageCache(prev => ({ ...prev, [name]: { url: null, credit: null } }));
+      }
+    } catch (e) {
+      setImageCache(prev => ({ ...prev, [name]: { url: null, credit: null } }));
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -355,19 +392,31 @@ const CitySearch = () => {
                     </div>
                   </div>
 
-                  {/* City Image */}
-                  {city.images && city.images[0] && (
-                    <div className="mb-4 rounded-lg overflow-hidden">
-                      <img 
-                        src={city.images[0].url} 
-                        alt={city.images[0].caption}
-                        className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80';
-                        }}
-                      />
-                    </div>
-                  )}
+                  {/* City Image (Unsplash if available) */}
+                  <div className="mb-4 rounded-lg overflow-hidden min-h-32 relative">
+                    <img
+                      src={(imageCache[city.name]?.url) || (city.images && city.images[0] && city.images[0].url) || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80'}
+                      alt={city.name}
+                      className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
+                      onLoad={() => fetchCityImage(city.name)}
+                      onError={(e) => {
+                        if (!imageCache[city.name]) fetchCityImage(city.name);
+                        e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80';
+                      }}
+                    />
+                    {imageCache[city.name]?.credit && imageCache[city.name]?.url && (
+                      <a
+                        href={imageCache[city.name].credit.link || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute bottom-0 left-0 right-0 bg-black/40 text-[10px] text-gray-100 px-2 py-1 flex justify-between items-center"
+                        title={`Photo by ${imageCache[city.name].credit.name} on Unsplash`}
+                      >
+                        <span>Photo: {imageCache[city.name].credit.name}</span>
+                        <span className="opacity-70">Unsplash</span>
+                      </a>
+                    )}
+                  </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -442,11 +491,11 @@ const CitySearch = () => {
             </div>
 
             {/* Detailed Attractions Section */}
-            {cities.length === 1 && cities[0].attractions && cities[0].attractions.length > 0 && (
+      {cities.length === 1 && (
               <div className="mt-12">
                 <div className="text-center mb-8">
                   <h2 className="text-3xl font-bold mb-2">
-                    Top {cities[0].attractions.length} Places to Visit in {cities[0].name}
+        Top {aiAttractions ? Math.min(10, aiAttractions.length) : (cities[0].attractions ? Math.min(10, cities[0].attractions.length) : 0)} Places to Visit in {cities[0].name}
                   </h2>
                   <p className="text-gray-600">
                     Discover the most famous attractions with detailed information, costs, and recommendations
@@ -458,121 +507,66 @@ const CitySearch = () => {
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {cities[0].attractions.map((attraction, index) => (
-                    <div key={attraction._id || index} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
-                      {/* Attraction Image */}
-                      <div className="mb-4 rounded-lg overflow-hidden">
-                        <img 
-                          src={attraction.imageUrl || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'}
-                          alt={attraction.name}
-                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
-                          }}
-                        />
-                      </div>
-
-                      {/* Attraction Header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-1">{attraction.name}</h3>
-                          <div className="flex items-center gap-2">
-                            <span className="badge badge-secondary text-xs">
-                              {attraction.type}
-                            </span>
-                            {attraction.rating && (
-                              <div className="flex items-center">
-                                <Star className="h-3 w-3 text-yellow-500 mr-1" />
-                                <span className="text-sm font-medium">{attraction.rating}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {(aiAttrLoading && <div className="col-span-full text-center text-sm text-gray-500">Loading attractions...</div>)}
+          {aiAttrError && <div className="col-span-full text-center text-sm text-danger-600">{aiAttrError}</div>}
+          {(aiAttractions || cities[0].attractions || []).slice(0,10).filter(a => a && a.name).map((attraction, index) => (
+                        <div key={attraction._id || index} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
+                          <div className="mb-4 rounded-lg overflow-hidden">
+                            <img 
+                              src={attraction.imageUrl || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'}
+                              alt={attraction.name}
+                              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'; }}
+                            />
+                          </div>
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h3 className="text-xl font-semibold text-gray-900 mb-1">{attraction.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <span className="badge badge-secondary text-xs">{attraction.type}</span>
+                                {attraction.rating && (
+                                  <div className="flex items-center">
+                                    <Star className="h-3 w-3 text-yellow-500 mr-1" />
+                                    <span className="text-sm font-medium">{attraction.rating}</span>
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-primary-600">{attraction.costCurrency === 'INR' ? '₹' : '$'}{attraction.cost}</div>
+                              <div className="text-xs text-gray-500">Entry Fee</div>
+                            </div>
+                          </div>
+                          {attraction.description && (<p className="text-gray-600 text-sm mb-4 line-clamp-3">{attraction.description}</p>)}
+                          <div className="space-y-2 mb-4">
+                            {attraction.bestTimeToVisit && (<div className="flex items-center text-xs text-gray-600"><Calendar className="h-3 w-3 mr-1" /><span>Best time: {attraction.bestTimeToVisit}</span></div>)}
+                            {attraction.visitDuration && (<div className="flex items-center text-xs text-gray-600"><Clock className="h-3 w-3 mr-1" /><span>Duration: {attraction.visitDuration}</span></div>)}
+                          </div>
+                          {attraction.highlights && attraction.highlights.length > 0 && (
+                            <div className="mb-4"><h5 className="text-sm font-medium text-gray-700 mb-2">Highlights:</h5>
+                              <div className="flex flex-wrap gap-1">
+                                {attraction.highlights.map((highlight, idx) => (<span key={idx} className="badge badge-accent text-xs">{highlight}</span>))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-2 text-sm">
+                            {(attraction.visitDuration || attraction.duration) && (<div className="flex items-center text-gray-600"><Clock className="h-4 w-4 mr-2" /><span>Duration: {attraction.visitDuration || attraction.duration}</span></div>)}
+                            {(attraction.bestTimeToVisit || attraction.bestTime) && (<div className="flex items-center text-gray-600"><Calendar className="h-4 w-4 mr-2" /><span>Best Time: {attraction.bestTimeToVisit || attraction.bestTime}</span></div>)}
+                          </div>
+                          <div className="mt-6 flex gap-2">
+                            <button className="btn-primary flex-1 text-sm">Learn More</button>
+                            <button onClick={() => handleAddToItinerary({ name: attraction.name, country: 'N/A', attractions: [attraction] })} className="btn-secondary text-sm">Add to Itinerary</button>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-primary-600">
-                            {attraction.costCurrency === 'INR' ? '₹' : '$'}{attraction.cost}
-                          </div>
-                          <div className="text-xs text-gray-500">Entry Fee</div>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      {attraction.description && (
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                          {attraction.description}
-                        </p>
-                      )}
-
-                      {/* Additional Info */}
-                      <div className="space-y-2 mb-4">
-                        {attraction.bestTimeToVisit && (
-                          <div className="flex items-center text-xs text-gray-600">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            <span>Best time: {attraction.bestTimeToVisit}</span>
-                          </div>
-                        )}
-                        {attraction.visitDuration && (
-                          <div className="flex items-center text-xs text-gray-600">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>Duration: {attraction.visitDuration}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Highlights */}
-                      {attraction.highlights && attraction.highlights.length > 0 && (
-                        <div className="mb-4">
-                          <h5 className="text-sm font-medium text-gray-700 mb-2">Highlights:</h5>
-                          <div className="flex flex-wrap gap-1">
-                            {attraction.highlights.map((highlight, idx) => (
-                              <span key={idx} className="badge badge-accent text-xs">
-                                {highlight}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Additional Info */}
-                      <div className="space-y-2 text-sm">
-                        {(attraction.visitDuration || attraction.duration) && (
-                          <div className="flex items-center text-gray-600">
-                            <Clock className="h-4 w-4 mr-2" />
-                            <span>Duration: {attraction.visitDuration || attraction.duration}</span>
-                          </div>
-                        )}
-                        {(attraction.bestTimeToVisit || attraction.bestTime) && (
-                          <div className="flex items-center text-gray-600">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            <span>Best Time: {attraction.bestTimeToVisit || attraction.bestTime}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="mt-6 flex gap-2">
-                        <button className="btn-primary flex-1 text-sm">
-                          Learn More
-                    </button>
-                    <button 
-                      onClick={() => handleAddToItinerary({ name: attraction.name, country: 'N/A', attractions: [attraction] })}
-                      className="btn-secondary text-sm"
-                    >
-                      Add to Itinerary
-                    </button>
-                  </div>
+                      ))}
                 </div>
-              ))}
-            </div>
               </div>
             )}
           </div>
-        )}
+  )}
 
-
-
-        {/* No Results */}
+  {/* No Results */}
         {!loading && !error && cities && cities.length === 0 && searchQuery && !aiSearchResult && (
           <div className="text-center py-12">
             <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />

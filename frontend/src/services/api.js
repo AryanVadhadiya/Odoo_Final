@@ -95,6 +95,13 @@ export const cityAPI = {
   getClimates: () => api.get('/cities/climates'),
   getNearbyCities: (lat, lng, radius, limit) => api.get('/cities/nearby', { params: { lat, lng, radius, limit } }),
   aiSearchCity: (cityName) => api.post('/cities/ai-search', { cityName }),
+  getLiveAttractions: (cityName) => api.get(`/cities/${encodeURIComponent(cityName)}/live-attractions`),
+  getAIAttractions: (cityName) => api.get(`/cities/${encodeURIComponent(cityName)}/ai-attractions`),
+};
+
+// Images API (Unsplash integration)
+export const imageAPI = {
+  search: (query) => api.get('/images/search', { params: { query } })
 };
 
 // User API
