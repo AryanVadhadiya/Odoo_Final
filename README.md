@@ -1,9 +1,12 @@
-<<<<<<< HEAD
+
 ## __Problem Statement:__ _GlobeTrotter – Empowering Personalized Travel Planning_
 GlobeTrotter aims to be a personalized, intelligent platform that redefines travel planning. It empowers users to dream, design, and organize trips effortlessly with flexible, interactive tools. By enabling exploration of global destinations, visualizing itineraries, making cost-effective choices, and sharing plans within a community, it makes planning as exciting as the journey itself.
 
 ---
 
+### Demo video at: [demo](https://drive.google.com/file/d/1sWZKuc-I82Ro83BP0gsW773Due4JK-gB/view?usp=drive_link)
+
+---
 
  ### <u>Team:</u> ___Epoch Wizards___
 ---
@@ -291,24 +294,6 @@ npm test
 2. Configure environment variables
 3. Deploy using Git integration
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation
 
 ## 🔮 Future Enhancements
 
@@ -326,4 +311,4 @@ For support and questions:
 ---
 
 **GlobeTrotter** - Plan your perfect journey, one destination at a time! 🌍✈️ 
->>>>>>> feature/gemini
+
