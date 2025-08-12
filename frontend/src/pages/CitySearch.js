@@ -45,6 +45,7 @@ const CitySearch = () => {
   const [aiAttractions, setAIAttractions] = useState(null);
   const [aiAttrLoading, setAIAttrLoading] = useState(false);
   const [aiAttrError, setAIAttrError] = useState(null);
+  const [attractionImageCache, setAttractionImageCache] = useState({}); // key: attractionName -> { url, credit, source }
 
   const interests = [
     'Culture & History', 'Food & Cuisine', 'Adventure Sports', 'Nightlife',
@@ -89,6 +90,33 @@ const CitySearch = () => {
       .catch(err => setAIAttrError(err.response?.data?.message || err.message))
       .finally(() => setAIAttrLoading(false));
   }, [cities]);
+
+  // Fetch images for each attraction (sequential to avoid bursts)
+  useEffect(() => {
+    if (!aiAttractions || aiAttractions.length === 0) return;
+    let isCancelled = false;
+    const loadImages = async () => {
+      for (const attr of aiAttractions.slice(0,10)) {
+        const key = attr.name;
+        if (!key || attractionImageCache[key]) continue;
+        try {
+          const { data } = await imageAPI.search(`${attr.name} ${cities[0]?.name || ''}`.trim());
+          if (!isCancelled) {
+            setAttractionImageCache(prev => ({
+              ...prev,
+              [key]: data?.success && data.photo?.url ? { url: data.photo.url, credit: data.photo.credit, source: data.photo.source } : { url: null }
+            }));
+          }
+        } catch (e) {
+          if (!isCancelled) {
+            setAttractionImageCache(prev => ({ ...prev, [key]: { url: null } }));
+          }
+        }
+      }
+    };
+    loadImages();
+    return () => { isCancelled = true; };
+  }, [aiAttractions, cities, attractionImageCache]);
 
   // Fetch Unsplash image for a city name (memoized in state cache)
   const fetchCityImage = async (name) => {
@@ -512,14 +540,30 @@ const CitySearch = () => {
           {aiAttrError && <div className="col-span-full text-center text-sm text-danger-600">{aiAttrError}</div>}
           {(aiAttractions || cities[0].attractions || []).slice(0,10).filter(a => a && a.name).map((attraction, index) => (
                         <div key={attraction._id || index} className="card card-gradient p-6 group hover:shadow-2xl transition-all duration-300">
-                          <div className="mb-4 rounded-lg overflow-hidden">
-                            <img 
-                              src={attraction.imageUrl || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'}
-                              alt={attraction.name}
-                              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'; }}
-                            />
-                          </div>
+              <div className="mb-4 rounded-lg overflow-hidden relative">
+                <img
+                  src={
+                    (attractionImageCache[attraction.name]?.url) ||
+                    attraction.imageUrl ||
+                    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80'
+                  }
+                  alt={attraction.name}
+                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80'; }}
+                />
+                {attractionImageCache[attraction.name]?.credit && attractionImageCache[attraction.name]?.url && (
+                  <a
+                    href={attractionImageCache[attraction.name].credit.link || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-0 left-0 right-0 bg-black/40 text-[10px] text-gray-100 px-2 py-1 flex justify-between items-center"
+                    title={`Photo by ${attractionImageCache[attraction.name].credit.name}`}
+                  >
+                    <span>{attractionImageCache[attraction.name].credit.name}</span>
+                    <span className="opacity-70">{attractionImageCache[attraction.name].credit.sourceLabel || (attractionImageCache[attraction.name].source === 'pexels' ? 'Pexels' : 'Unsplash')}</span>
+                  </a>
+                )}
+              </div>
                           <div className="flex items-start justify-between mb-3">
                             <div>
                               <h3 className="text-xl font-semibold text-gray-900 mb-1">{attraction.name}</h3>
