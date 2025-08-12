@@ -2,20 +2,82 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 class GeminiService {
   constructor() {
-    if (!process.env.GEMINI_API_KEY) {
-      console.warn('⚠️ GEMINI_API_KEY not found in environment variables');
-      this.genAI = null;
-      return;
+    // Multi-key setup (comma separated GEMINI_API_KEYS has priority over single GEMINI_API_KEY)
+    const multi = process.env.GEMINI_API_KEYS;
+    const single = process.env.GEMINI_API_KEY;
+    this.models = [];
+    if (multi) {
+      const keys = multi.split(',').map(k => k.trim()).filter(Boolean);
+      keys.forEach((key, idx) => {
+        try {
+          const genAI = new GoogleGenerativeAI(key);
+          this.models.push(genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-001' }));
+        } catch (e) {
+          console.warn(`⚠️ Gemini key index ${idx} init failed:`, e.message);
+        }
+      });
+      console.log(`GeminiService: initialized ${this.models.length} model instance(s) from GEMINI_API_KEYS`);
+    } else if (single) {
+      try {
+        const genAI = new GoogleGenerativeAI(single);
+        this.models = [genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-001' })];
+        console.log('GeminiService: initialized single Gemini model instance');
+      } catch (e) {
+        console.warn('⚠️ Failed to init Gemini model with GEMINI_API_KEY:', e.message);
+      }
+    } else {
+      console.warn('⚠️ No Gemini API key(s) provided (GEMINI_API_KEYS or GEMINI_API_KEY)');
     }
-    
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-001' });
+    this.modelIndex = 0;
+
+    // Simple in-memory caches (optional future use)
+    this.cityCache = new Map();
+    this.attractionCache = new Map();
+    this.cacheTTL = parseInt(process.env.GEMINI_CACHE_TTL_MS) || 30 * 60 * 1000;
+
+    // Concurrency queue ("multi-threading" simulation)
+    this.maxConcurrency = Math.max(1, parseInt(process.env.GEMINI_MAX_CONCURRENCY) || this.models.length || 1);
+    this.currentRunning = 0;
+    this.queue = [];
+  }
+
+  getModel() {
+    if (!this.models.length) return null;
+    const m = this.models[this.modelIndex % this.models.length];
+    this.modelIndex = (this.modelIndex + 1) % this.models.length;
+    return m;
+  }
+
+  _enqueue(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject });
+      this._drain();
+    });
+  }
+
+  _drain() {
+    while (this.currentRunning < this.maxConcurrency && this.queue.length) {
+      const task = this.queue.shift();
+      this.currentRunning++;
+      Promise.resolve()
+        .then(task.fn)
+        .then(res => { this.currentRunning--; task.resolve(res); this._drain(); })
+        .catch(err => { this.currentRunning--; task.reject(err); this._drain(); });
+    }
+  }
+
+  async _generate(prompt) {
+    const model = this.getModel();
+    if (!model) throw new Error('Gemini API not configured');
+    return this._enqueue(async () => {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    });
   }
 
   async generateCityRecommendations(preferences) {
-    if (!this.genAI) {
-      throw new Error('Gemini API not configured');
-    }
+  // Multi-key path
+  if (!this.models.length) throw new Error('Gemini API not configured');
 
     const { budget, interests, duration, startLocation, travelStyle } = preferences;
     
@@ -50,9 +112,7 @@ class GeminiService {
     }`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+  const text = await this._generate(prompt);
       
       // Extract JSON from the response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -69,9 +129,7 @@ class GeminiService {
   }
 
   async generateItinerary(cities, preferences) {
-    if (!this.genAI) {
-      throw new Error('Gemini AI not configured');
-    }
+  if (!this.models.length) throw new Error('Gemini AI not configured');
 
     const { duration, budget, interests, travelPace } = preferences;
     
@@ -118,9 +176,7 @@ class GeminiService {
     }`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+  const text = await this._generate(prompt);
       
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -135,9 +191,7 @@ class GeminiService {
   }
 
   async generateActivityRecommendations(city, preferences) {
-    if (!this.genAI) {
-      throw new Error('Gemini AI not configured');
-    }
+  if (!this.models.length) throw new Error('Gemini AI not configured');
 
     const { interests, budget, duration, travelStyle } = preferences;
     
@@ -175,9 +229,7 @@ class GeminiService {
     }`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+  const text = await this._generate(prompt);
       
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -192,9 +244,7 @@ class GeminiService {
   }
 
   async generateBudgetBreakdown(tripDetails) {
-    if (!this.genAI) {
-      throw new Error('Gemini AI not configured');
-    }
+  if (!this.models.length) throw new Error('Gemini AI not configured');
 
     const { cities, duration, travelStyle, groupSize } = tripDetails;
     
@@ -250,9 +300,7 @@ class GeminiService {
     }`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+  const text = await this._generate(prompt);
       
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -267,9 +315,7 @@ class GeminiService {
   }
 
   async generateCityData(cityName, opts = {}) {
-    if (!this.genAI) {
-      throw new Error('Gemini API not configured');
-    }
+  if (!this.models.length) throw new Error('Gemini API not configured');
     const retryCount = opts.retryCount || 0;
     const extra = retryCount > 0 ? `\nCRITICAL ADDITIONAL REQUIREMENTS (Retry #${retryCount}):\n- Eliminate any generic placeholder attraction names like '${cityName} Fort' or '${cityName} Market' unless they are the widely recognized proper names (e.g., 'Shaniwar Wada', 'Aga Khan Palace').\n- All attraction names must be unique and famous / notable.\n- Do NOT repeat any attraction names.\n- If you previously returned fewer than 15, expand to 15 with additional real attractions.\n` : '';
 
@@ -355,9 +401,7 @@ class GeminiService {
   15. Include best time to visit and recommended duration for each attraction\n16. All attraction names must be unique (case-insensitive)`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+  const text = await this._generate(prompt);
       
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -395,13 +439,12 @@ class GeminiService {
   }
 
   async generateCityAttractions(cityName, opts = {}) {
-    if (!this.genAI) throw new Error('Gemini API not configured');
+  if (!this.models.length) throw new Error('Gemini API not configured');
     const retry = opts.retry || 0;
     const extra = retry > 0 ? `\nRETRY #${retry}: Ensure all 10 attractions are unique, well-known, and avoid generic placeholders like '${cityName} Fort' unless that is the official historic site name.` : '';
     const prompt = `List EXACTLY 10 famous attractions for ${cityName}. Provide JSON only in this structure:\n{ "attractions": [ { "name": "", "category": "landmark|museum|park|cultural|historical|shopping|entertainment|nature", "description": "", "estimatedCost": 0, "costCurrency": "USD or INR", "bestTime": "", "visitDuration": "2-3 hours", "highlights": ["",""], "rating": 4.5 } ] }\nRules:\n- Only real, notable places (e.g., Red Fort, Chandni Chowk, Qutub Minar)\n- Unique names, no duplicates (case-insensitive)\n- estimatedCost numeric (typical entry or average spend)\n- costCurrency: INR for Indian cities, else USD\n- rating between 3.5 and 5\n- Avoid filler text.\n${extra}`;
     try {
-      const result = await this.model.generateContent(prompt);
-      const text = result.response.text();
+  const text = await this._generate(prompt);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON returned');
       const data = JSON.parse(jsonMatch[0]);
@@ -431,7 +474,7 @@ class GeminiService {
   }
 
   async generateAttractionDetail(attractionName, cityName) {
-    if (!this.genAI) throw new Error('Gemini API not configured');
+  if (!this.models.length) throw new Error('Gemini API not configured');
     const prompt = `Provide a concise yet rich JSON object describing the attraction "${attractionName}" in ${cityName}. Include:
 {
   "name": "${attractionName}",
@@ -452,8 +495,7 @@ Rules:
 - Cost amount numeric, currency ISO code.
 - Use INR if Indian attraction, else USD.`;
     try {
-      const result = await this.model.generateContent(prompt);
-      const text = result.response.text();
+  const text = await this._generate(prompt);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON');
       const data = JSON.parse(jsonMatch[0]);
