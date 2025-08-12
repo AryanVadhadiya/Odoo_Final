@@ -4,7 +4,7 @@ GlobeTrotter aims to be a personalized, intelligent platform that redefines trav
 
 ---
 
-### Demo video at: [demo](https://drive.google.com/file/d/1sWZKuc-I82Ro83BP0gsW773Due4JK-gB/view?usp=drive_link)
+### Demo video at: [demo](https://drive.google.com/file/d/1Xz20vnRqj74uZvVUq9tfKbSSNXmT9bFp/view?usp=sharing)
 
 ---
 
