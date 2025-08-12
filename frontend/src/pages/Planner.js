@@ -41,17 +41,24 @@ const Planner = () => {
       order: idx
     }));
     // Map timeline into activities payload (not currently saved by backend createTrip, would need separate endpoint; attach for future use)
-    const activities = timeline.map(t => ({
-      title: t.title,
-      type: t.type,
-      date: t.scheduledDate,
-      startTime: t.startTime,
-      endTime: t.startTime, // placeholder; backend pre-save hook recalculates duration if endTime provided
-      duration: t.duration,
-      cost: t.cost,
-      currency: t.currency,
-      description: t.description
-    }));
+    const activities = timeline.map(t => {
+      const start = new Date(`2000-01-01T${t.startTime}:00`);
+      start.setMinutes(start.getMinutes() + (t.duration || 0));
+      const hh = String(start.getHours()).padStart(2,'0');
+      const mm = String(start.getMinutes()).padStart(2,'0');
+      const endTime = `${hh}:${mm}`;
+      return {
+        title: t.title,
+        type: t.type,
+        date: t.scheduledDate || details.startDate,
+        startTime: t.startTime,
+        endTime,
+        duration: t.duration,
+        cost: t.cost,
+        currency: t.currency,
+        description: t.description
+      };
+    });
     const payload = {
       name: details?.name || 'New Trip',
       description: details?.description || '',

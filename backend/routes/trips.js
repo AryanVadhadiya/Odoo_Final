@@ -290,7 +290,7 @@ router.post('/', [
       });
     }
 
-    const { name, description, startDate, endDate, coverPhoto, tags } = req.body;
+  const { name, description, startDate, endDate, coverPhoto, tags, destinations, activities } = req.body;
 
     // Validate dates
     if (new Date(startDate) >= new Date(endDate)) {
@@ -300,7 +300,7 @@ router.post('/', [
       });
     }
 
-    const trip = await Trip.create({
+    let trip = await Trip.create({
       user: req.user.id,
       name,
       description,
@@ -310,9 +310,84 @@ router.post('/', [
       tags
     });
 
+    // Optional destinations
+    if (Array.isArray(destinations) && destinations.length > 0) {
+      const cleaned = destinations
+        .filter(d => d && d.city && d.country && d.arrivalDate && d.departureDate)
+        .map((d, idx) => ({
+          city: String(d.city).trim(),
+            country: String(d.country).trim(),
+            arrivalDate: d.arrivalDate,
+            departureDate: d.departureDate,
+            order: typeof d.order === 'number' ? d.order : idx
+        }))
+        .filter(d => {
+          // within trip date range
+          return new Date(d.arrivalDate) >= new Date(startDate) && new Date(d.departureDate) <= new Date(endDate);
+        });
+      if (cleaned.length) {
+        trip.destinations = cleaned;
+        await trip.save();
+      }
+    }
+
+    // Optional activities
+    let createdActivities = [];
+    if (Array.isArray(activities) && activities.length > 0) {
+      const Activity = require('../models/Activity');
+      const primaryDestination = (trip.destinations && trip.destinations[0]) || null;
+      const toInsert = activities
+        .filter(a => a && a.title && a.date && a.startTime)
+        .map(a => {
+          const duration = typeof a.duration === 'number' ? a.duration : (a.endTime ? (() => { // derive duration
+            const start = new Date(`2000-01-01T${a.startTime}:00`);
+            const end = new Date(`2000-01-01T${a.endTime}:00`);
+            return Math.max(0, Math.round((end - start)/60000));
+          })() : 0);
+          // compute endTime if not provided and duration present
+          let endTime = a.endTime;
+          if (!endTime && duration && duration > 0) {
+            const start = new Date(`2000-01-01T${a.startTime}:00`);
+            start.setMinutes(start.getMinutes() + duration);
+            const hh = String(start.getHours()).padStart(2,'0');
+            const mm = String(start.getMinutes()).padStart(2,'0');
+            endTime = `${hh}:${mm}`;
+          }
+          return {
+            trip: trip._id,
+            destination: {
+              city: a.destination?.city || primaryDestination?.city || 'Unknown',
+              country: a.destination?.country || primaryDestination?.country || 'Unknown'
+            },
+            title: a.title,
+            description: a.description || '',
+            type: a.type || 'other',
+            date: new Date(a.date),
+            startTime: a.startTime,
+            endTime: endTime || a.startTime,
+            duration: duration || 0,
+            location: { name: a.location?.name || a.title },
+            cost: { amount: a.cost || 0, currency: a.currency || 'USD', perPerson: true },
+            tags: Array.isArray(a.tags) ? a.tags : []
+          };
+        })
+        .filter(a => a.date >= new Date(startDate) && a.date <= new Date(endDate));
+      if (toInsert.length) {
+        try {
+          createdActivities = await Activity.insertMany(toInsert);
+        } catch (actErr) {
+          console.error('Activity bulk insert error:', actErr.message);
+        }
+      }
+    }
+
+    // Return trip plus limited activities list
     res.status(201).json({
       success: true,
-      data: trip
+      data: {
+        ...trip.toObject(),
+        activities: createdActivities
+      }
     });
   } catch (error) {
     console.error('Create trip error:', error);

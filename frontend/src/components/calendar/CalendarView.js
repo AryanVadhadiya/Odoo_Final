@@ -38,10 +38,19 @@ const CalendarView = ({
     return days;
   };
 
+  const groupActivitiesByDate = (list=[]) => list.reduce((acc,a)=>{ if(!a.date) return acc; const ds=new Date(a.date).toISOString().split('T')[0]; (acc[ds]=acc[ds]||[]).push(a); return acc; },{});
+
   // Get activities for a specific date
   const getActivitiesForDate = (date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return itinerary?.days?.[dateStr]?.activities || [];
+    // Support both old itinerary.days[date].activities and new itinerary.itinerary[date]
+    if (itinerary?.days?.[dateStr]?.activities) return itinerary.days[dateStr].activities;
+    if (itinerary?.itinerary?.[dateStr]) return itinerary.itinerary[dateStr];
+    if (Array.isArray(activities) && activities.length) {
+      const grouped = groupActivitiesByDate(activities);
+      return grouped[dateStr] || [];
+    }
+    return [];
   };
 
   // Format date for display
@@ -161,27 +170,24 @@ const CalendarView = ({
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1 min-w-0">
                                       <h4 className="text-sm font-medium text-gray-900 truncate">
-                                        {activity.name}
+                                        {activity.title}
                                       </h4>
-                                      
-                                      {activity.time && (
+                                      {(activity.startTime || activity.endTime) && (
                                         <div className="flex items-center mt-1 text-xs text-gray-500">
                                           <Clock className="h-3 w-3 mr-1" />
-                                          {formatTime(activity.time)}
+                                          {activity.startTime}{activity.endTime ? ` - ${activity.endTime}` : ''}
                                         </div>
                                       )}
-                                      
-                                      {activity.location && (
+                                      {activity.destination?.city && (
                                         <div className="flex items-center mt-1 text-xs text-gray-500">
                                           <MapPin className="h-3 w-3 mr-1" />
-                                          <span className="truncate">{activity.location}</span>
+                                          <span className="truncate">{activity.destination.city}{activity.destination.country ? `, ${activity.destination.country}` : ''}</span>
                                         </div>
                                       )}
-                                      
                                       {activity.cost?.amount > 0 && (
                                         <div className="flex items-center mt-1 text-xs text-gray-500">
                                           <DollarSign className="h-3 w-3 mr-1" />
-                                          {formatCurrency(activity.cost.amount, activity.cost.currency)}
+                                          {formatCurrency(activity.cost.amount, activity.cost.currency || 'USD')}
                                         </div>
                                       )}
                                     </div>
