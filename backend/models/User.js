@@ -26,25 +26,54 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  profilePicture: {
+    type: String,
+    default: ''
+  },
+  location: {
+    type: String,
+    maxlength: [100, 'Location cannot be more than 100 characters']
+  },
   bio: {
     type: String,
-    maxlength: [200, 'Bio cannot be more than 200 characters']
+    maxlength: [500, 'Bio cannot be more than 500 characters']
   },
   preferences: {
     language: {
       type: String,
       default: 'en',
-      enum: ['en', 'es', 'fr', 'de', 'it']
+      enum: ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko', 'ar']
     },
     currency: {
       type: String,
       default: 'USD',
       enum: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD']
     },
+    timezone: {
+      type: String,
+      default: 'UTC'
+    },
     theme: {
       type: String,
       default: 'light',
       enum: ['light', 'dark']
+    },
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    pushNotifications: {
+      type: Boolean,
+      default: true
+    },
+    marketingEmails: {
+      type: Boolean,
+      default: false
     }
   },
   savedDestinations: [{

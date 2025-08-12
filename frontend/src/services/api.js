@@ -43,6 +43,7 @@ export const authAPI = {
   updatePassword: (passwordData) => api.put('/auth/updatepassword', passwordData),
   forgotPassword: (email) => api.post('/auth/forgotpassword', { email }),
   resetPassword: (token, password) => api.put(`/auth/resetpassword/${token}`, { password }),
+  deleteAccount: () => api.delete('/auth/account'),
 };
 
 // Trip API
@@ -100,6 +101,7 @@ export const cityAPI = {
 export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (profileData) => api.put('/users/profile', profileData),
+  getSavedDestinations: () => api.get('/users/saved-destinations'),
   addSavedDestination: (destinationData) => api.post('/users/saved-destinations', destinationData),
   removeSavedDestination: (destinationId) => api.delete(`/users/saved-destinations/${destinationId}`),
   getUserStats: () => api.get('/users/stats'),
@@ -110,6 +112,18 @@ export const userAPI = {
 export const budgetAPI = {
   getBudget: (tripId) => api.get(`/budget/${tripId}`),
   updateBudget: (tripId, budgetData) => api.put(`/budget/${tripId}`, budgetData),
+};
+
+// Admin API
+export const adminAPI = {
+  getStats: () => api.get('/admin/stats'),
+  getPopularCities: () => api.get('/admin/popular-cities'),
+  getPopularActivities: () => api.get('/admin/popular-activities'),
+  getBudgetDistribution: () => api.get('/admin/budget-distribution'),
+  getMonthlyTrends: () => api.get('/admin/monthly-trends'),
+  getRecentActivity: () => api.get('/admin/recent-activity'),
+  exportCSV: (type) => api.get(`/admin/export/${type}`, { responseType: 'blob' }),
+  promote: (password) => api.post('/admin/promote', { password }),
 };
 
 export default api;

@@ -62,6 +62,18 @@ export const updateProfile = createAsyncThunk(
   }
 );
 
+export const deleteAccount = createAsyncThunk(
+  'auth/deleteAccount',
+  async (_, { rejectWithValue }) => {
+    try {
+      await authAPI.deleteAccount();
+      return null;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Account deletion failed');
+    }
+  }
+);
+
 export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (email, { rejectWithValue }) => {
@@ -185,6 +197,23 @@ const authSlice = createSlice({
         state.user = action.payload.user;
       })
       .addCase(updateProfile.rejected, (state, action) => {
+        state.profileLoading = false;
+        state.profileError = action.payload;
+      })
+      
+      // Delete account
+      .addCase(deleteAccount.pending, (state) => {
+        state.profileLoading = true;
+        state.profileError = null;
+      })
+      .addCase(deleteAccount.fulfilled, (state) => {
+        state.profileLoading = false;
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
+        localStorage.removeItem('token');
+      })
+      .addCase(deleteAccount.rejected, (state, action) => {
         state.profileLoading = false;
         state.profileError = action.payload;
       })

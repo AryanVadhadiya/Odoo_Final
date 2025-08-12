@@ -29,10 +29,12 @@ import BudgetOverview from './pages/BudgetOverview';
 import TripCalendar from './pages/TripCalendar';
 import PublicItinerary from './pages/PublicItinerary';
 import PublicTrips from './pages/PublicTrips';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+// import AdminRoute from './components/auth/AdminRoute';
 
 function App() {
   const dispatch = useDispatch();
@@ -107,7 +109,8 @@ function App() {
         <Route path="budget" element={<BudgetOverview />} />
         <Route path="trips/:tripId/budget" element={<TripBudget />} />
         <Route path="trips/:tripId/calendar" element={<TripCalendar />} />
-        <Route path="profile" element={<Profile />} />
+  <Route path="profile" element={<Profile />} />
+  <Route path="admin" element={<AdminDashboard />} />
       </Route>
 
       {/* Catch all route */}

@@ -100,6 +100,38 @@ router.put('/profile', [
   }
 });
 
+// @route   GET /api/users/saved-destinations
+// @desc    Get user's saved destinations
+// @access  Private
+router.get('/saved-destinations', async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('savedDestinations');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user.savedDestinations.map(dest => ({
+        _id: dest._id,
+        name: dest.city,
+        country: dest.country,
+        savedAt: dest.addedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Get saved destinations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // @route   POST /api/users/saved-destinations
 // @desc    Add saved destination
 // @access  Private

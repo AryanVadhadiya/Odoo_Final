@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -14,6 +15,7 @@ const userRoutes = require('./routes/users');
 const activityRoutes = require('./routes/activities');
 const cityRoutes = require('./routes/cities');
 const budgetRoutes = require('./routes/budget');
+const adminRoutes = require('./routes/admin');
 
 const errorHandler = require('./middleware/errorHandler');
 const { auth } = require('./middleware/auth');
@@ -53,6 +55,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'GlobeTrotter API is running' });
 });
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/trips', auth, tripRoutes);
@@ -61,6 +66,7 @@ app.use('/api/users', auth, userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/budget', auth, budgetRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Public routes (no auth required)
 app.use('/api/trips/public', tripRoutes);

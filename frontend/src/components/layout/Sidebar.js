@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Search,
   ClipboardList,
-  Globe
+  Globe,
+  Shield
 } from 'lucide-react';
 import { setSidebarOpen, toggleSidebarCollapsed } from '../../store/slices/uiSlice';
 
@@ -20,6 +21,7 @@ const Sidebar = () => {
   const dispatch = useDispatch();
   const { sidebarOpen, sidebarCollapsed } = useSelector((state) => state.ui);
   const { trips } = useSelector((state) => state.trips);
+  const { user } = useSelector((state) => state.auth);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -31,6 +33,11 @@ const Sidebar = () => {
     { name: 'Discover Trips', href: '/discover', icon: Globe },
     { name: 'Profile', href: '/profile', icon: User },
   ];
+
+  // Add admin dashboard for admin users
+  if (user?.role === 'admin') {
+    navigation.push({ name: 'Admin Dashboard', href: '/admin', icon: Shield });
+  }
 
   const closeSidebar = () => {
     dispatch(setSidebarOpen(false));

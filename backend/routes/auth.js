@@ -3,10 +3,39 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const path = require('path');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Multer configuration for profile picture uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/profiles/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Please upload an image file'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -181,11 +210,14 @@ router.get('/me', auth, async (req, res) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        profilePicture: user.profilePicture,
         bio: user.bio,
+        location: user.location,
         preferences: user.preferences,
         savedDestinations: user.savedDestinations,
         emailVerified: user.emailVerified,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -330,7 +362,7 @@ router.put('/resetpassword/:resettoken', [
 // @route   PUT /api/auth/updatedetails
 // @desc    Update user details
 // @access  Private
-router.put('/updatedetails', auth, [
+router.put('/updatedetails', auth, upload.single('profilePicture'), [
   body('name')
     .optional()
     .trim()
@@ -355,8 +387,47 @@ router.put('/updatedetails', auth, [
       name: req.body.name,
       email: req.body.email,
       bio: req.body.bio,
-      preferences: req.body.preferences
+      location: req.body.location
     };
+
+    // Handle nested preferences object
+    if (req.body.preferences) {
+      const preferences = typeof req.body.preferences === 'string' 
+        ? JSON.parse(req.body.preferences) 
+        : req.body.preferences;
+      
+      fieldsToUpdate.preferences = preferences;
+    }
+
+    // Handle individual preference fields (for form data)
+    const preferenceFields = [
+      'language', 'timezone', 'emailNotifications', 
+      'pushNotifications', 'marketingEmails'
+    ];
+    
+    const hasIndividualPreferences = preferenceFields.some(field => 
+      req.body[`preferences.${field}`] !== undefined
+    );
+
+    if (hasIndividualPreferences) {
+      fieldsToUpdate.preferences = {};
+      preferenceFields.forEach(field => {
+        const value = req.body[`preferences.${field}`];
+        if (value !== undefined) {
+          // Convert string 'true'/'false' to boolean for checkbox fields
+          if (['emailNotifications', 'pushNotifications', 'marketingEmails'].includes(field)) {
+            fieldsToUpdate.preferences[field] = value === 'true' || value === true;
+          } else {
+            fieldsToUpdate.preferences[field] = value;
+          }
+        }
+      });
+    }
+
+    // Handle profile picture upload
+    if (req.file) {
+      fieldsToUpdate.profilePicture = `/uploads/profiles/${req.file.filename}`;
+    }
 
     // Remove undefined fields
     Object.keys(fieldsToUpdate).forEach(key => 
@@ -375,8 +446,11 @@ router.put('/updatedetails', auth, [
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        profilePicture: user.profilePicture,
         bio: user.bio,
-        preferences: user.preferences
+        location: user.location,
+        preferences: user.preferences,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -424,6 +498,40 @@ router.put('/updatepassword', auth, [
     sendTokenResponse(user, 200, res);
   } catch (error) {
     console.error('Update password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   DELETE /api/auth/account
+// @desc    Delete user account
+// @access  Private
+router.delete('/account', auth, async (req, res) => {
+  try {
+    // Find and delete the user
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete user account
+    await User.findByIdAndDelete(req.user.id);
+
+    // TODO: Also delete user's trips, activities, and other related data
+    // This could be handled with a cleanup job or cascade delete
+
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
