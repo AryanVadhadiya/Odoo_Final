@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Plus, MapPin, Calendar, DollarSign, Star, Clock, Sparkles, Target, Users, Heart, Globe, X, Check, Edit3 } from 'lucide-react';
+import { ArrowLeft, Plus, MapPin, Calendar, DollarSign, Star, Clock, Sparkles, Target, Users, Heart, Globe, X, Check, Edit3, Building, Compass } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { createTrip } from '../store/slices/tripSlice';
 import { itineraryAPI, activityAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 import CitySearch from '../components/common/CitySearch';
+import PlaceSearch from '../components/common/PlaceSearch';
+import ItineraryBuilder from '../components/common/ItineraryBuilder';
 
 const CitySearchPage = () => {
   const navigate = useNavigate();
@@ -13,8 +15,10 @@ const CitySearchPage = () => {
   const dispatch = useDispatch();
   
   const [tripData, setTripData] = useState(null);
+  const [currentStep, setCurrentStep] = useState('city-selection'); // 'city-selection', 'place-selection', 'itinerary-building'
   const [selectedCities, setSelectedCities] = useState([]);
-  const [currentStep, setCurrentStep] = useState('city-selection'); // 'city-selection' or 'itinerary-planning'
+  const [selectedPlaces, setSelectedPlaces] = useState([]);
+  const [currentCity, setCurrentCity] = useState(null);
   const [aiPreferences, setAIPreferences] = useState({
     budget: 'moderate',
     interests: [],
@@ -23,11 +27,6 @@ const CitySearchPage = () => {
     travelStyle: 'balanced',
     groupSize: 'couple',
     season: 'any'
-  });
-  const [itineraryData, setItineraryData] = useState({
-    destinations: [],
-    totalBudget: 0,
-    estimatedDuration: 0
   });
 
   useEffect(() => {
@@ -112,26 +111,31 @@ const CitySearchPage = () => {
     ));
   };
 
-  const proceedToItineraryPlanning = () => {
-    if (selectedCities.length === 0) {
-      toast.error('Please select at least one city before proceeding');
-      return;
-    }
-
-    // Calculate itinerary data
-    const totalBudget = selectedCities.reduce((sum, city) => sum + (city.estimatedCost * 2), 0);
-    const estimatedDuration = selectedCities.length * 2;
-
-    setItineraryData({
-      destinations: selectedCities,
-      totalBudget,
-      estimatedDuration
-    });
-
-    setCurrentStep('itinerary-planning');
+  const proceedToPlaceSelection = (city) => {
+    setCurrentCity(city);
+    setCurrentStep('place-selection');
   };
 
-  const handleFinalSubmit = async () => {
+  const handlePlacesSelected = (places) => {
+    setSelectedPlaces(places);
+    setCurrentStep('itinerary-building');
+  };
+
+  const handleProceedToItinerary = () => {
+    setCurrentStep('itinerary-building');
+  };
+
+  const handleAddAnotherCity = () => {
+    setCurrentStep('city-selection');
+    setCurrentCity(null);
+    setSelectedPlaces([]);
+  };
+
+  const handleBackToPlaceSearch = () => {
+    setCurrentStep('place-selection');
+  };
+
+  const handleSaveItinerary = async (itineraryData) => {
     try {
       // Create the trip first
       const tripResponse = await dispatch(createTrip(tripData)).unwrap();
@@ -156,7 +160,7 @@ const CitySearchPage = () => {
       // Clear localStorage
       localStorage.removeItem('pendingTripData');
 
-      toast.success('Trip created successfully with all destinations!');
+      toast.success('Trip created successfully with complete itinerary!');
       
       // Redirect to itineraries page
       navigate('/itinerary', { 
@@ -164,7 +168,8 @@ const CitySearchPage = () => {
           tripId,
           destinations: selectedCities,
           aiPreferences,
-          step: 'planning-complete'
+          step: 'planning-complete',
+          itineraryData
         }
       });
 
@@ -172,10 +177,6 @@ const CitySearchPage = () => {
       console.error('Failed to create trip:', error);
       toast.error('Failed to create trip. Please try again.');
     }
-  };
-
-  const goBackToCitySelection = () => {
-    setCurrentStep('city-selection');
   };
 
   if (!tripData) {
@@ -194,8 +195,8 @@ const CitySearchPage = () => {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">AI-Powered Destination Discovery</h1>
-            <p className="text-gray-600">Plan your {tripData.name} with intelligent city recommendations</p>
+            <h1 className="text-3xl font-bold text-gray-900">AI-Powered Trip Planning</h1>
+            <p className="text-gray-600">Plan your {tripData.name} with intelligent recommendations</p>
           </div>
         </div>
 
@@ -209,17 +210,24 @@ const CitySearchPage = () => {
               <span className="font-medium">City Selection</span>
             </div>
             <div className="w-16 h-1 bg-gray-200 rounded"></div>
-            <div className={`flex items-center space-x-2 ${currentStep === 'itinerary-planning' ? 'text-primary-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'itinerary-planning' ? 'bg-primary-600 text-white' : 'bg-gray-200'}`}>
+            <div className={`flex items-center space-x-2 ${currentStep === 'place-selection' ? 'text-primary-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'place-selection' ? 'bg-primary-600 text-white' : 'bg-gray-200'}`}>
                 2
               </div>
-              <span className="font-medium">Itinerary Planning</span>
+              <span className="font-medium">Place Discovery</span>
+            </div>
+            <div className="w-16 h-1 bg-gray-200 rounded"></div>
+            <div className={`flex items-center space-x-2 ${currentStep === 'itinerary-building' ? 'text-primary-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'itinerary-building' ? 'bg-primary-600 text-white' : 'bg-gray-200'}`}>
+                3
+              </div>
+              <span className="font-medium">Itinerary Builder</span>
             </div>
           </div>
         </div>
 
-        {currentStep === 'city-selection' ? (
-          /* City Selection Step */
+        {/* Step Content */}
+        {currentStep === 'city-selection' && (
           <div className="space-y-8">
             {/* Trip Summary */}
             <div className="card bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200">
@@ -255,6 +263,47 @@ const CitySearchPage = () => {
                 </h2>
                 <p className="text-sm text-gray-600 mt-2">Use AI to find the perfect cities for your trip</p>
               </div>
+              
+              {/* API Status Info */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-blue-800">AI-Powered Discovery</h3>
+                    <p className="text-xs text-blue-700 mt-1">
+                      If the AI service is temporarily busy, we'll show you curated fallback data to keep your planning going!
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      console.log('🧪 Testing fallback data...');
+                      const testData = [
+                        {
+                          name: 'Delhi',
+                          country: 'India',
+                          region: 'North India',
+                          costIndex: 4,
+                          popularity: 9,
+                          description: 'Historic capital with rich culture, monuments, and vibrant street life',
+                          bestTimeToVisit: 'October to March',
+                          avgDailyCost: 45,
+                          climate: 'Tropical',
+                          highlights: ['Red Fort', 'Taj Mahal', 'Qutub Minar', 'India Gate', 'Humayun\'s Tomb'],
+                          imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+                        }
+                      ];
+                      console.log('🧪 Test data:', testData);
+                      toast.success('Test data loaded! Check console for details.');
+                    }}
+                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-xs hover:bg-blue-200 transition-colors"
+                  >
+                    Test Data
+                  </button>
+                </div>
+              </div>
+              
               <CitySearch
                 onCitySelect={handleCitySelect}
                 placeholder="Type any city name in the world (e.g., Paris, Tokyo, New York)..."
@@ -316,12 +365,21 @@ const CitySearchPage = () => {
                               </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => removeCity(city.name)}
-                            className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => proceedToPlaceSelection(city)}
+                              className="btn-primary text-sm px-4 py-2"
+                            >
+                              <Building className="h-4 w-4 mr-1" />
+                              Discover Places
+                            </button>
+                            <button
+                              onClick={() => removeCity(city.name)}
+                              className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -329,137 +387,62 @@ const CitySearchPage = () => {
                   
                   <div className="mt-6 text-center">
                     <button
-                      onClick={proceedToItineraryPlanning}
+                      onClick={() => setCurrentStep('place-selection')}
                       className="btn-primary px-8 py-3 text-lg"
                     >
                       <Check className="mr-2 h-5 w-5" />
-                      Continue to Itinerary Planning
+                      Continue to Place Discovery
                     </button>
                   </div>
                 </div>
               </div>
             )}
           </div>
-        ) : (
-          /* Itinerary Planning Step */
-          <div className="space-y-8">
-            {/* Itinerary Overview */}
-            <div className="card bg-gradient-to-r from-green-50 to-blue-50 border border-green-200">
-              <div className="card-header">
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <Target className="mr-2 text-green-500" />
-                  Itinerary Overview
-                </h2>
-                <p className="text-sm text-gray-600">Review your trip plan before finalizing</p>
-              </div>
-              <div className="card-body">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary-600">{selectedCities.length}</div>
-                    <div className="text-sm text-gray-600">Destinations</div>
+        )}
+
+        {currentStep === 'place-selection' && currentCity && (
+          <div className="space-y-6">
+            {/* City Header */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-xl flex items-center justify-center text-white">
+                    <Building className="h-8 w-8" />
                   </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-600">{itineraryData.estimatedDuration} days</div>
-                    <div className="text-sm text-gray-600">Estimated Duration</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600">
-                      {tripData.budget?.currency || '$'}{itineraryData.totalBudget}
-                    </div>
-                    <div className="text-sm text-gray-600">Estimated Cost</div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Discovering {currentCity.name}</h2>
+                    <p className="text-gray-600">Select the places you'd like to visit in this amazing city</p>
                   </div>
                 </div>
-                
-                <div className="text-center">
-                  <button
-                    onClick={goBackToCitySelection}
-                    className="btn-secondary mr-4"
-                  >
-                    <Edit3 className="mr-2 h-4 w-4" />
-                    Edit Cities
-                  </button>
-                  <button
-                    onClick={handleFinalSubmit}
-                    className="btn-primary px-8 py-3"
-                  >
-                    <Check className="mr-2 h-5 w-5" />
-                    Create Trip & Go to Itinerary
-                  </button>
-                </div>
+                <button
+                  onClick={() => setCurrentStep('city-selection')}
+                  className="btn-secondary"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Cities
+                </button>
               </div>
             </div>
 
-            {/* Detailed Itinerary */}
-            <div className="card">
-              <div className="card-header">
-                <h2 className="text-xl font-semibold text-gray-900">Detailed Itinerary</h2>
-                <p className="text-sm text-gray-600">Your complete travel plan</p>
-              </div>
-              <div className="card-body">
-                <div className="space-y-6">
-                  {selectedCities.map((city, index) => (
-                    <div key={city.name} className="bg-white rounded-lg p-6 border border-gray-200">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold">
-                            {city.order}
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-semibold text-gray-900">{city.name}, {city.country}</h3>
-                            <p className="text-gray-600">{city.description}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-primary-600">${city.estimatedCost}</div>
-                          <div className="text-sm text-gray-500">per day</div>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center text-sm text-gray-600 mb-1">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            Arrival Date
-                          </div>
-                          <div className="font-medium">{city.arrivalDate}</div>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center text-sm text-gray-600 mb-1">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            Departure Date
-                          </div>
-                          <div className="font-medium">{city.departureDate}</div>
-                        </div>
-                      </div>
+            {/* Place Search Component */}
+            <PlaceSearch
+              cityName={currentCity.name}
+              onPlacesSelected={handlePlacesSelected}
+              onProceedToItinerary={handleProceedToItinerary}
+            />
+          </div>
+        )}
 
-                      {/* City Highlights */}
-                      {city.highlights && city.highlights.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="font-medium text-gray-900 mb-2">Highlights:</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {city.highlights.slice(0, 5).map((highlight, idx) => (
-                              <span key={idx} className="badge badge-accent text-xs">
-                                {highlight}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Estimated Budget for this city */}
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Estimated cost for this city:</span>
-                          <span className="font-semibold text-blue-600">
-                            {tripData.budget?.currency || '$'}{city.estimatedCost * 2}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+        {currentStep === 'itinerary-building' && (
+          <div className="space-y-6">
+            {/* Itinerary Builder Component */}
+            <ItineraryBuilder
+              tripData={tripData}
+              selectedPlaces={selectedPlaces}
+              onAddAnotherCity={handleAddAnotherCity}
+              onSaveItinerary={handleSaveItinerary}
+              onBackToPlaceSearch={handleBackToPlaceSearch}
+            />
           </div>
         )}
       </div>

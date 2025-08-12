@@ -118,14 +118,43 @@ const CitySearch = ({ onCitySelect, placeholder = "Search for cities...", showFi
         popularity: selectedFilters.popularity || ''
       };
 
+      console.log('🔍 Performing AI search for:', query, 'with filters:', searchFilters);
+
       // Use AI-powered city search
       const results = await suggestionsAPI.searchCities(query, searchFilters);
-      setCities(results.slice(0, maxResults));
-      setShowResults(true);
+      
+      console.log('📊 Received results from API:', results);
+      
+      // Ensure we have results (either from API or fallback)
+      if (results && Array.isArray(results) && results.length > 0) {
+        console.log('✅ Setting cities with results:', results.slice(0, maxResults));
+        setCities(results.slice(0, maxResults));
+        console.log('🔍 Setting showResults to TRUE');
+        setShowResults(true);
+        
+        // Show success message for fallback data
+        if (results.length > 0 && results[0].name) {
+          toast.success(`Found ${results.length} cities for "${query}"`);
+        }
+      } else {
+        // No results found
+        console.log('❌ No valid results found, setting empty cities');
+        setCities([]);
+        setShowResults(false);
+        toast.info(`No cities found for "${query}". Try a different search term.`);
+      }
     } catch (error) {
       console.error('AI city search error:', error);
-      toast.error('Failed to search cities with AI');
+      
+      // Check if it's a rate limit error
+      if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+        toast.error('AI service is temporarily busy. Please try again in a few minutes.');
+      } else {
+        toast.error('Failed to search cities. Please try again.');
+      }
+      
       setCities([]);
+      setShowResults(false);
     } finally {
       setLoading(false);
     }
@@ -313,6 +342,38 @@ const CitySearch = ({ onCitySelect, placeholder = "Search for cities...", showFi
           🚀 AI will generate comprehensive city data with attractions, costs, and detailed recommendations for any location you search!
         </p>
       </div>
+      
+      {/* Debug Section */}
+      <div className="mt-2 bg-gray-100 p-2 rounded text-xs text-gray-600">
+        🐛 Debug: query="{query}", cities.length={cities.length}, showResults={String(showResults)}, loading={String(loading)}
+      </div>
+      
+      {/* Fallback Display - Always show cities when available */}
+      {cities.length > 0 && (
+        <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-green-800 mb-2">
+            🎯 Found Cities ({cities.length})
+          </h3>
+          <div className="space-y-2">
+            {cities.map((city, index) => (
+              <div key={index} className="bg-white p-3 rounded border border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{city.name}</h4>
+                    <p className="text-sm text-gray-600">{city.country} • ${city.avgDailyCost}/day</p>
+                  </div>
+                  <button
+                    onClick={() => handleCitySelect(city)}
+                    className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filter Panel */}
       {showFilterPanel && showFilters && (
@@ -478,7 +539,7 @@ const CitySearch = ({ onCitySelect, placeholder = "Search for cities...", showFi
 
       {/* Search Results */}
       {showResults && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+        <div className="mt-4 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
           {loading ? (
             <div className="p-4 text-center text-gray-500">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
@@ -487,6 +548,11 @@ const CitySearch = ({ onCitySelect, placeholder = "Search for cities...", showFi
             </div>
           ) : cities.length > 0 ? (
             <div className="p-2">
+              {/* Debug Info */}
+              <div className="p-2 mb-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                🐛 Debug: showResults={String(showResults)}, cities.length={cities.length}
+              </div>
+              
               {cities.map((city, index) => (
                 <div
                   key={index}

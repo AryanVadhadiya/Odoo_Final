@@ -133,7 +133,10 @@ export const suggestionsAPI = {
   // Search for cities with comprehensive information
   searchCities: async (query, filters = {}) => {
     const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    if (!apiKey) {
+      console.warn('Missing REACT_APP_GEMINI_API_KEY, using fallback data');
+      return getFallbackCities(query);
+    }
     
     const { country, region, costRange, popularity } = filters;
     let prompt = `Search for cities matching "${query}" and return a JSON array of 8-12 cities. `;
@@ -146,6 +149,8 @@ export const suggestionsAPI = {
     prompt += `Each city must have: name, country, region, costIndex (1-10, 1=very cheap, 10=very expensive), popularity (1-10, 1=hidden gem, 10=very popular), description (<=150 chars), bestTimeToVisit (string), avgDailyCost (number in USD), climate (string), highlights (array of 3-5 attractions), imageUrl (placeholder URL).`;
     
     try {
+      console.log('🔍 Searching for cities with query:', query);
+      
       const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,19 +161,39 @@ export const suggestionsAPI = {
         }),
       });
       
+      if (resp.status === 429) {
+        console.warn('Gemini API rate limited, using fallback data');
+        const fallbackData = getFallbackCities(query);
+        console.log('📊 Returning fallback data:', fallbackData);
+        return fallbackData;
+      }
+      
+      if (!resp.ok) {
+        throw new Error(`API responded with status: ${resp.status}`);
+      }
+      
       const data = await resp.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-      return JSON.parse(text);
+      const parsedResults = JSON.parse(text);
+      
+      console.log('✅ API returned results:', parsedResults);
+      return parsedResults;
     } catch (error) {
       console.error('City search error:', error);
-      return [];
+      console.warn('Using fallback data due to API error');
+      const fallbackData = getFallbackCities(query);
+      console.log('📊 Returning fallback data due to error:', fallbackData);
+      return fallbackData;
     }
   },
 
   // Get popular cities for recommendations
   getPopularCities: async (limit = 10, category = 'general') => {
     const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    if (!apiKey) {
+      console.warn('Missing REACT_APP_GEMINI_API_KEY, using fallback data');
+      return getFallbackPopularCities(limit, category);
+    }
     
     const prompt = `Return a JSON array of ${limit} popular cities for ${category} travel. Each city must have: name, country, region, costIndex (1-10), popularity (1-10), description (<=150 chars), bestTimeToVisit (string), avgDailyCost (USD), climate (string), highlights (array of 3-5 attractions), imageUrl (placeholder URL), whyVisit (<=100 chars).`;
     
@@ -183,19 +208,32 @@ export const suggestionsAPI = {
         }),
       });
       
+      if (resp.status === 429) {
+        console.warn('Gemini API rate limited, using fallback data');
+        return getFallbackPopularCities(limit, category);
+      }
+      
+      if (!resp.ok) {
+        throw new Error(`API responded with status: ${resp.status}`);
+      }
+      
       const data = await resp.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
       return JSON.parse(text);
     } catch (error) {
       console.error('Popular cities error:', error);
-      return [];
+      console.warn('Using fallback data due to API error');
+      return getFallbackPopularCities(limit, category);
     }
   },
 
   // Discover activities for a specific city
   discoverActivities: async (cityName, filters = {}) => {
     const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Missing REACT_APP_GEMINI_API_KEY');
+    if (!apiKey) {
+      console.warn('Missing REACT_APP_GEMINI_API_KEY, using fallback data');
+      return getFallbackActivities(cityName, filters);
+    }
     
     const { type, costRange, duration, interests } = filters;
     let prompt = `Discover activities in ${cityName} and return a JSON array of 8-12 activities. `;
@@ -218,12 +256,22 @@ export const suggestionsAPI = {
         }),
       });
       
+      if (resp.status === 429) {
+        console.warn('Gemini API rate limited, using fallback data');
+        return getFallbackActivities(cityName, filters);
+      }
+      
+      if (!resp.ok) {
+        throw new Error(`API responded with status: ${resp.status}`);
+      }
+      
       const data = await resp.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
       return JSON.parse(text);
     } catch (error) {
       console.error('Activity discovery error:', error);
-      return [];
+      console.warn('Using fallback data due to API error');
+      return getFallbackActivities(cityName, filters);
     }
   },
 
@@ -294,6 +342,241 @@ export const suggestionsAPI = {
   getTopPlaces: async (cityQuery) => {
     return this.discoverActivities(cityQuery);
   },
+};
+
+// Fallback data functions
+const getFallbackCities = (query) => {
+  const queryLower = query.toLowerCase();
+  
+  console.log('🔍 Using fallback data for query:', query);
+  
+  // India-specific fallback data
+  if (queryLower.includes('delhi') || queryLower.includes('india')) {
+    const delhiCities = [
+      {
+        name: 'Delhi',
+        country: 'India',
+        region: 'North India',
+        costIndex: 4,
+        popularity: 9,
+        description: 'Historic capital with rich culture, monuments, and vibrant street life',
+        bestTimeToVisit: 'October to March',
+        avgDailyCost: 45,
+        climate: 'Tropical',
+        highlights: ['Red Fort', 'Taj Mahal', 'Qutub Minar', 'India Gate', 'Humayun\'s Tomb'],
+        imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+      },
+      {
+        name: 'Mumbai',
+        country: 'India',
+        region: 'West India',
+        costIndex: 6,
+        popularity: 8,
+        description: 'Financial capital with beaches, Bollywood, and colonial architecture',
+        bestTimeToVisit: 'November to February',
+        avgDailyCost: 55,
+        climate: 'Tropical',
+        highlights: ['Gateway of India', 'Marine Drive', 'Juhu Beach', 'Elephanta Caves', 'Colaba Causeway'],
+        imageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+      },
+      {
+        name: 'Jaipur',
+        country: 'India',
+        region: 'Rajasthan',
+        costIndex: 3,
+        popularity: 7,
+        description: 'Pink City known for palaces, forts, and traditional handicrafts',
+        bestTimeToVisit: 'October to March',
+        avgDailyCost: 35,
+        climate: 'Desert',
+        highlights: ['Amber Fort', 'City Palace', 'Hawa Mahal', 'Jantar Mantar', 'Nahargarh Fort'],
+        imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+      }
+    ];
+    
+    console.log('🇮🇳 Returning India fallback cities:', delhiCities);
+    return delhiCities;
+  }
+  
+  // Generic fallback data
+  const genericCities = [
+    {
+      name: 'Paris',
+      country: 'France',
+      region: 'Île-de-France',
+      costIndex: 8,
+      popularity: 10,
+      description: 'City of Light with iconic landmarks, art, and romantic atmosphere',
+      bestTimeToVisit: 'April to October',
+      avgDailyCost: 120,
+      climate: 'Temperate',
+      highlights: ['Eiffel Tower', 'Louvre Museum', 'Notre-Dame', 'Arc de Triomphe', 'Champs-Élysées'],
+      imageUrl: 'https://images.unsplash.com/photo-1502602898536-47ad22581b52?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+    },
+    {
+      name: 'Tokyo',
+      country: 'Japan',
+      region: 'Kanto',
+      costIndex: 9,
+      popularity: 9,
+      description: 'Modern metropolis blending technology with traditional culture',
+      bestTimeToVisit: 'March to May and September to November',
+      avgDailyCost: 150,
+      climate: 'Temperate',
+      highlights: ['Shibuya Crossing', 'Senso-ji Temple', 'Tokyo Skytree', 'Tsukiji Market', 'Meiji Shrine'],
+      imageUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+    }
+  ];
+  
+  console.log('🌍 Returning generic fallback cities:', genericCities);
+  return genericCities;
+};
+
+const getFallbackPopularCities = (limit, category) => {
+  const cities = [
+    {
+      name: 'Bali',
+      country: 'Indonesia',
+      region: 'Lesser Sunda Islands',
+      costIndex: 4,
+      popularity: 9,
+      description: 'Tropical paradise with beaches, temples, and spiritual retreats',
+      bestTimeToVisit: 'April to October',
+      avgDailyCost: 50,
+      climate: 'Tropical',
+      highlights: ['Ubud Sacred Monkey Forest', 'Tanah Lot Temple', 'Rice Terraces', 'Beach Clubs', 'Volcano Tours'],
+      imageUrl: 'https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+      whyVisit: 'Perfect blend of culture, nature, and relaxation'
+    },
+    {
+      name: 'Santorini',
+      country: 'Greece',
+      region: 'Cyclades',
+      costIndex: 7,
+      popularity: 9,
+      description: 'Stunning volcanic island with white architecture and blue domes',
+      bestTimeToVisit: 'June to September',
+      avgDailyCost: 100,
+      climate: 'Mediterranean',
+      highlights: ['Oia Sunset Views', 'Fira Town', 'Red Beach', 'Wine Tours', 'Caldera Cruises'],
+      imageUrl: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+      whyVisit: 'Iconic Greek island with breathtaking views and romantic atmosphere'
+    }
+  ];
+  
+  return cities.slice(0, limit);
+};
+
+const getFallbackActivities = (cityName, filters) => {
+  const cityLower = cityName.toLowerCase();
+  
+  // Delhi-specific activities
+  if (cityLower.includes('delhi')) {
+    return [
+      {
+        title: 'Visit Red Fort',
+        description: 'Explore the magnificent 17th-century Mughal fort, a UNESCO World Heritage site',
+        type: 'sightseeing',
+        cost: 15,
+        duration: 180,
+        rating: 4.8,
+        location: 'Old Delhi',
+        bestTime: 'Early morning to avoid crowds',
+        highlights: ['Historical significance', 'Beautiful architecture', 'Museum exhibits'],
+        imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        difficulty: 'easy',
+        groupSize: 'family'
+      },
+      {
+        title: 'Explore Chandni Chowk',
+        description: 'Experience the bustling old market with street food, shopping, and cultural heritage',
+        type: 'food',
+        cost: 25,
+        duration: 240,
+        rating: 4.6,
+        location: 'Old Delhi',
+        bestTime: 'Morning for shopping, evening for food',
+        highlights: ['Street food paradise', 'Traditional shopping', 'Cultural experience'],
+        imageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        difficulty: 'medium',
+        groupSize: 'group'
+      },
+      {
+        title: 'Qutub Minar Complex',
+        description: 'Marvel at the tallest brick minaret in the world and surrounding historical monuments',
+        type: 'culture',
+        cost: 10,
+        duration: 120,
+        rating: 4.7,
+        location: 'Mehrauli',
+        bestTime: 'Sunrise or sunset for best photos',
+        highlights: ['UNESCO site', 'Ancient architecture', 'Historical importance'],
+        imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        difficulty: 'easy',
+        groupSize: 'couple'
+      },
+      {
+        title: 'Humayun\'s Tomb',
+        description: 'Visit the stunning Mughal tomb that inspired the Taj Mahal design',
+        type: 'sightseeing',
+        cost: 8,
+        duration: 90,
+        rating: 4.5,
+        location: 'Nizamuddin',
+        bestTime: 'Early morning for peaceful experience',
+        highlights: ['Beautiful gardens', 'Architectural marvel', 'Less crowded'],
+        imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        difficulty: 'easy',
+        groupSize: 'family'
+      },
+      {
+        title: 'India Gate & Rajpath',
+        description: 'Walk along the ceremonial boulevard and visit the war memorial',
+        type: 'sightseeing',
+        cost: 0,
+        duration: 60,
+        rating: 4.3,
+        location: 'Central Delhi',
+        bestTime: 'Evening for cooler weather and lighting',
+        highlights: ['Free attraction', 'Historical significance', 'Great for photos'],
+        imageUrl: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        difficulty: 'easy',
+        groupSize: 'solo'
+      }
+    ];
+  }
+  
+  // Generic fallback activities
+  return [
+    {
+      title: 'City Walking Tour',
+      description: 'Explore the city on foot with a knowledgeable local guide',
+      type: 'sightseeing',
+      cost: 30,
+      duration: 180,
+      rating: 4.5,
+      location: 'City Center',
+      bestTime: 'Morning or late afternoon',
+      highlights: ['Local insights', 'Hidden gems', 'Historical context'],
+      imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+      difficulty: 'easy',
+      groupSize: 'group'
+    },
+    {
+      title: 'Local Food Experience',
+      description: 'Taste authentic local cuisine at popular restaurants and street vendors',
+      type: 'food',
+      cost: 40,
+      duration: 120,
+      rating: 4.7,
+      location: 'Various locations',
+      bestTime: 'Lunch or dinner time',
+      highlights: ['Authentic flavors', 'Cultural experience', 'Local recommendations'],
+      imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+      difficulty: 'easy',
+      groupSize: 'couple'
+    }
+  ];
 };
 
 // Health check
