@@ -429,6 +429,39 @@ class GeminiService {
       throw new Error('Failed to generate city attractions');
     }
   }
+
+  async generateAttractionDetail(attractionName, cityName) {
+    if (!this.genAI) throw new Error('Gemini API not configured');
+    const prompt = `Provide a concise yet rich JSON object describing the attraction "${attractionName}" in ${cityName}. Include:
+{
+  "name": "${attractionName}",
+  "city": "${cityName}",
+  "summary": "1-2 sentence overview",
+  "history": "Brief historical background (4-6 sentences)",
+  "highlights": ["3-6 key highlights"],
+  "tips": ["3-5 practical visitor tips"],
+  "bestTime": "Best time of day/season to visit",
+  "estimatedVisitDuration": "e.g., 2-3 hours",
+  "approximateCost": { "amount": 0, "currency": "INR or USD" },
+  "nearby": ["2-4 notable nearby places"],
+  "categories": ["landmark","history"],
+  "funFacts": ["1-3 short fun facts"]
+}
+Rules:
+- JSON only, no extra commentary.
+- Cost amount numeric, currency ISO code.
+- Use INR if Indian attraction, else USD.`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON');
+      const data = JSON.parse(jsonMatch[0]);
+      return data;
+    } catch (e) {
+      throw new Error('Failed to generate attraction detail');
+    }
+  }
 }
 
 module.exports = new GeminiService();

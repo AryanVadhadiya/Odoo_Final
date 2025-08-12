@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { itineraryAPI } from '../../services/api';
+import { createSelector } from '@reduxjs/toolkit';
 
 // Mock data for demonstration
 const mockActivities = [
@@ -333,14 +334,15 @@ export const selectTimelineByDate = (state, date) => {
   return timeline.filter(item => item.scheduledDate === date);
 };
 
-export const selectTimelineTotals = (state) => {
-  const timeline = state.planner.timeline || [];
-  const totalActivities = timeline.length;
-  const totalTime = timeline.reduce((sum, item) => sum + item.duration, 0);
-  const totalCost = timeline.reduce((sum, item) => sum + item.cost, 0);
-  
-  return { totalActivities, totalTime, totalCost };
-};
+export const selectTimelineTotals = createSelector(
+  [(state) => state.planner.timeline],
+  (timeline = []) => {
+    const totalActivities = timeline.length;
+    const totalTime = timeline.reduce((sum, item) => sum + item.duration, 0);
+    const totalCost = timeline.reduce((sum, item) => sum + item.cost, 0);
+    return { totalActivities, totalTime, totalCost };
+  }
+);
 
 export const selectDayTotals = (state, date) => {
   const dayActivities = selectTimelineByDate(state, date);
@@ -378,4 +380,4 @@ export const updateBasket = createAsyncThunk(
   }
 );
 
-export default plannerSlice.reducer; 
+export default plannerSlice.reducer;

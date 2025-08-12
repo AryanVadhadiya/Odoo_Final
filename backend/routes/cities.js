@@ -420,4 +420,19 @@ router.get('/:cityName/ai-attractions', async (req, res) => {
   }
 });
 
+// @route POST /api/cities/attraction/detail
+// @desc  Generate detailed info for a specific attraction in a city
+// @access Public
+router.post('/attraction/detail', async (req, res) => {
+  try {
+    const { attractionName, cityName } = req.body || {};
+    if (!attractionName || !cityName) return res.status(400).json({ success: false, message: 'attractionName and cityName required' });
+    const detail = await geminiService.generateAttractionDetail(attractionName.trim(), cityName.trim());
+    res.json({ success: true, source: 'gemini', data: detail });
+  } catch (err) {
+    console.error('Attraction detail error:', err.message);
+    res.status(500).json({ success: false, message: err.message || 'Failed to generate attraction detail' });
+  }
+});
+
 module.exports = router; 

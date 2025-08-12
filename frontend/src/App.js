@@ -30,6 +30,7 @@ import TripCalendar from './pages/TripCalendar';
 import PublicItinerary from './pages/PublicItinerary';
 import PublicTrips from './pages/PublicTrips';
 import AdminDashboard from './pages/AdminDashboard';
+import AttractionDetail from './pages/AttractionDetail';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -102,14 +103,15 @@ function App() {
         <Route path="trips/create" element={<TripCreate />} />
         <Route path="trips/:tripId" element={<TripDetail />} />
         <Route path="trips/:tripId/edit" element={<TripEdit />} />
-  <Route path="trips/:tripId/itinerary" element={<div>Not Found</div>} />
+        <Route path="trips/:tripId/itinerary" element={<div>Not Found</div>} />
         <Route path="cities" element={<CitySearch />} />
         <Route path="planner" element={<Planner />} />
         <Route path="budget" element={<BudgetOverview />} />
         <Route path="trips/:tripId/budget" element={<TripBudget />} />
         <Route path="trips/:tripId/calendar" element={<TripCalendar />} />
         <Route path="profile" element={<Profile />} />
-  <Route path="admin" element={<AdminDashboard />} />
+        <Route path="admin" element={<AdminDashboard />} />
+        <Route path="cities/:cityName/attraction/:attractionSlug" element={<AttractionDetail />} />
       </Route>
 
       {/* Catch all route */}
@@ -118,4 +120,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

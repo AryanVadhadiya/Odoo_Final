@@ -97,6 +97,7 @@ export const cityAPI = {
   aiSearchCity: (cityName) => api.post('/cities/ai-search', { cityName }),
   getLiveAttractions: (cityName) => api.get(`/cities/${encodeURIComponent(cityName)}/live-attractions`),
   getAIAttractions: (cityName) => api.get(`/cities/${encodeURIComponent(cityName)}/ai-attractions`),
+  getAttractionDetail: (cityName, attractionName) => api.post('/cities/attraction/detail', { cityName, attractionName }),
 };
 
 // Images API (Unsplash integration)

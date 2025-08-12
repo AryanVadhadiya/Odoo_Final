@@ -126,12 +126,14 @@ const tripSlice = createSlice({
       })
       .addCase(fetchTrips.fulfilled, (state, action) => {
         state.loading = false;
-        state.trips = action.payload.data;
-        state.pagination = action.payload.pagination;
+        // Backend returns { success, count, total, pagination, data }
+        const payload = action.payload;
+        state.trips = payload.data || [];
+        if (payload.pagination) state.pagination = payload.pagination;
       })
       .addCase(fetchTrips.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || 'Failed to fetch trips';
       })
       
       // Fetch single trip
@@ -217,4 +219,4 @@ const tripSlice = createSlice({
 });
 
 export const { clearError, clearCurrentTrip, clearPublicTrip, setCurrentTrip } = tripSlice.actions;
-export default tripSlice.reducer; 
+export default tripSlice.reducer;

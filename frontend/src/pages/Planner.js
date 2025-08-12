@@ -5,11 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { saveCurrentCity, clearBuilder, selectBudgetUsed, selectBudgetTotal, selectBudgetRemaining } from '../store/slices/tripBuilderSlice';
 import { createTrip } from '../store/slices/tripSlice';
 import { toast } from 'react-hot-toast';
+import { selectTimeline } from '../store/slices/plannerSlice';
 
 const Planner = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { details, cities } = useSelector((s) => s.tripBuilder || {});
+  const timeline = useSelector(selectTimeline);
   const budgetUsed = useSelector(selectBudgetUsed);
   const budgetTotal = useSelector(selectBudgetTotal);
   const budgetRemaining = useSelector(selectBudgetRemaining);
@@ -26,11 +28,37 @@ const Planner = () => {
       toast.error('Total planned cost exceeds your trip budget!');
       return;
     }
+    if(!details?.startDate || !details?.endDate){
+      toast.error('Trip dates missing');
+      return;
+    }
+    // Build destinations from tripBuilder cities (simple order)
+    const destinations = (cities || []).map((c, idx) => ({
+      city: c.city,
+      country: c.country,
+      arrivalDate: details.startDate,
+      departureDate: details.endDate,
+      order: idx
+    }));
+    // Map timeline into activities payload (not currently saved by backend createTrip, would need separate endpoint; attach for future use)
+    const activities = timeline.map(t => ({
+      title: t.title,
+      type: t.type,
+      date: t.scheduledDate,
+      startTime: t.startTime,
+      endTime: t.startTime, // placeholder; backend pre-save hook recalculates duration if endTime provided
+      duration: t.duration,
+      cost: t.cost,
+      currency: t.currency,
+      description: t.description
+    }));
     const payload = {
       name: details?.name || 'New Trip',
       description: details?.description || '',
       startDate: details?.startDate,
       endDate: details?.endDate,
+      destinations,
+      activities
     };
     const action = await dispatch(createTrip(payload));
     if (createTrip.fulfilled.match(action)) {
