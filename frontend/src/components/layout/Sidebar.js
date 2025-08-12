@@ -4,16 +4,15 @@ import { NavLink, Link } from 'react-router-dom';
 import { 
   Home, 
   Map, 
-  Calendar, 
   Plus, 
   User, 
-  Settings, 
   BarChart3,
   X,
   ChevronLeft,
   ChevronRight,
   Search,
-  ClipboardList
+  ClipboardList,
+  Globe
 } from 'lucide-react';
 import { setSidebarOpen, toggleSidebarCollapsed } from '../../store/slices/uiSlice';
 
@@ -29,6 +28,7 @@ const Sidebar = () => {
     { name: 'Trip Planner', href: '/planner', icon: ClipboardList },
     { name: 'Budget Overview', href: '/budget', icon: BarChart3 },
     { name: 'Search Cities', href: '/cities', icon: Search },
+    { name: 'Discover Trips', href: '/discover', icon: Globe },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 

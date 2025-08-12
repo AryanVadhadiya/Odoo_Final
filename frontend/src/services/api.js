@@ -53,6 +53,10 @@ export const tripAPI = {
   updateTrip: (tripId, tripData) => api.put(`/trips/${tripId}`, tripData),
   deleteTrip: (tripId) => api.delete(`/trips/${tripId}`),
   getPublicTrip: (publicUrl) => api.get(`/trips/public/${publicUrl}`),
+  getPublicItinerary: (publicUrl) => api.get(`/trips/public/${publicUrl}/itinerary`),
+  copyPublicTrip: (publicUrl) => api.post(`/trips/public/${publicUrl}/copy`),
+  makePublic: (tripId) => api.post(`/trips/${tripId}/make-public`),
+  makePrivate: (tripId) => api.post(`/trips/${tripId}/make-private`),
   addCollaborator: (tripId, collaboratorData) => api.post(`/trips/${tripId}/collaborators`, collaboratorData),
 };
 

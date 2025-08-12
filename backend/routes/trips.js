@@ -14,7 +14,7 @@ router.get('/public/:publicUrl', async (req, res) => {
     const trip = await Trip.findOne({ 
       publicUrl: req.params.publicUrl,
       isPublic: true 
-    }).populate('destinations');
+    }).populate('destinations').populate('user', 'firstName lastName email username profilePicture');
 
     if (!trip) {
       return res.status(404).json({
@@ -29,6 +29,140 @@ router.get('/public/:publicUrl', async (req, res) => {
     });
   } catch (error) {
     console.error('Get public trip error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/trips/public/:publicUrl/itinerary
+// @desc    Get detailed public itinerary with activities
+// @access  Public
+router.get('/public/:publicUrl/itinerary', async (req, res) => {
+  try {
+    const trip = await Trip.findOne({ 
+      publicUrl: req.params.publicUrl,
+      isPublic: true 
+    }).populate('destinations').populate('user', 'firstName lastName email username profilePicture');
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Public trip not found'
+      });
+    }
+
+    // Get all activities for this trip
+    const activities = await Activity.find({ trip: trip._id }).sort({ date: 1, time: 1 });
+
+    // Group activities by date
+    const itinerary = {};
+    const startDate = new Date(trip.startDate);
+    const endDate = new Date(trip.endDate);
+    
+    // Initialize each day
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const dateStr = current.toISOString().split('T')[0];
+      itinerary[dateStr] = {
+        date: new Date(current),
+        activities: []
+      };
+      current.setDate(current.getDate() + 1);
+    }
+
+    // Group activities by date
+    activities.forEach(activity => {
+      const dateStr = activity.date.toISOString().split('T')[0];
+      if (itinerary[dateStr]) {
+        itinerary[dateStr].activities.push(activity);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        trip,
+        itinerary,
+        activities: activities.length,
+        days: Object.keys(itinerary).length
+      }
+    });
+  } catch (error) {
+    console.error('Get public itinerary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   POST /api/trips/public/:publicUrl/copy
+// @desc    Copy public trip to user's account
+// @access  Private
+router.post('/public/:publicUrl/copy', async (req, res) => {
+  try {
+    // Find the public trip
+    const originalTrip = await Trip.findOne({ 
+      publicUrl: req.params.publicUrl,
+      isPublic: true 
+    }).populate('destinations');
+
+    if (!originalTrip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Public trip not found'
+      });
+    }
+
+    // Create a copy for the authenticated user
+    const tripCopy = new Trip({
+      user: req.user.id,
+      name: `${originalTrip.name} (Copy)`,
+      description: originalTrip.description,
+      startDate: originalTrip.startDate,
+      endDate: originalTrip.endDate,
+      destinations: originalTrip.destinations,
+      budget: originalTrip.budget,
+      tags: originalTrip.tags,
+      status: 'planning',
+      isPublic: false // Default to private
+    });
+
+    await tripCopy.save();
+
+    // Copy activities
+    const originalActivities = await Activity.find({ trip: originalTrip._id });
+    const activityCopies = originalActivities.map(activity => ({
+      trip: tripCopy._id,
+      name: activity.name,
+      description: activity.description,
+      type: activity.type,
+      location: activity.location,
+      date: activity.date,
+      time: activity.time,
+      duration: activity.duration,
+      cost: activity.cost,
+      rating: activity.rating,
+      tags: activity.tags,
+      notes: activity.notes
+    }));
+
+    if (activityCopies.length > 0) {
+      await Activity.insertMany(activityCopies);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Trip copied successfully',
+      data: {
+        tripId: tripCopy._id,
+        name: tripCopy.name
+      }
+    });
+  } catch (error) {
+    console.error('Copy public trip error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -550,6 +684,92 @@ router.post('/:id/budget-breakdown', async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to generate budget breakdown'
+    });
+  }
+});
+
+// @route   POST /api/trips/:tripId/make-public
+// @desc    Make a trip public and generate sharing URL
+// @access  Private
+router.post('/:tripId/make-public', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check if user owns the trip
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this trip'
+      });
+    }
+
+    // Generate public URL if not exists
+    if (!trip.publicUrl) {
+      const crypto = require('crypto');
+      trip.publicUrl = crypto.randomBytes(16).toString('hex');
+    }
+
+    trip.isPublic = true;
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        publicUrl: trip.publicUrl,
+        shareUrl: `${req.protocol}://${req.get('host')}/public-itinerary/${trip.publicUrl}`
+      },
+      message: 'Trip is now public and ready to share!'
+    });
+  } catch (error) {
+    console.error('Make trip public error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to make trip public'
+    });
+  }
+});
+
+// @route   POST /api/trips/:tripId/make-private
+// @desc    Make a public trip private
+// @access  Private
+router.post('/:tripId/make-private', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check if user owns the trip
+    if (trip.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this trip'
+      });
+    }
+
+    trip.isPublic = false;
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Trip is now private'
+    });
+  } catch (error) {
+    console.error('Make trip private error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to make trip private'
     });
   }
 });

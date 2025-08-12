@@ -20,7 +20,6 @@ import Trips from './pages/Trips';
 import TripDetail from './pages/TripDetail';
 import TripCreate from './pages/TripCreate';
 import TripEdit from './pages/TripEdit';
-import Itinerary from './pages/Itinerary';
 import Profile from './pages/Profile';
 import PublicTrip from './pages/PublicTrip';
 import CitySearch from './pages/CitySearch';
@@ -28,6 +27,8 @@ import Planner from './pages/Planner';
 import TripBudget from './pages/TripBudget';
 import BudgetOverview from './pages/BudgetOverview';
 import TripCalendar from './pages/TripCalendar';
+import PublicItinerary from './pages/PublicItinerary';
+import PublicTrips from './pages/PublicTrips';
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -85,6 +86,8 @@ function App() {
       } />
       <Route path="/trip/:publicUrl" element={<PublicTrip />} />
       <Route path="/public-trip/:publicUrl" element={<PublicTrip />} />
+      <Route path="/public-itinerary/:publicUrl" element={<PublicItinerary />} />
+      <Route path="/discover" element={<PublicTrips />} />
 
       {/* Protected routes */}
       <Route path="/" element={

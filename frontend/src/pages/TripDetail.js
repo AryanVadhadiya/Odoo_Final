@@ -1,13 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, Edit, Share, Calendar, MapPin, DollarSign, Clock } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, MapPin, DollarSign, Clock, Copy, Globe, Lock } from 'lucide-react';
 import { fetchTrip } from '../store/slices/tripSlice';
+import { tripAPI } from '../services/api';
+import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const TripDetail = () => {
   const { tripId } = useParams();
   const dispatch = useDispatch();
+  const [sharing, setSharing] = useState(false);
   const { currentTrip: trip, tripLoading: loading, tripError: error } = useSelector((state) => state.trips);
 
   useEffect(() => {
@@ -40,6 +43,52 @@ const TripDetail = () => {
       cancelled: 'bg-red-100 text-red-600'
     };
     return colors[status] || 'bg-gray-100 text-gray-600';
+  };
+
+  const handleMakePublic = async () => {
+    try {
+      setSharing(true);
+      const response = await tripAPI.makePublic(tripId);
+      const { shareUrl } = response.data.data;
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Trip is now public! Share URL copied to clipboard.');
+      
+      // Refresh trip data to get updated publicUrl
+      dispatch(fetchTrip(tripId));
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to make trip public');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleMakePrivate = async () => {
+    try {
+      setSharing(true);
+      await tripAPI.makePrivate(tripId);
+      toast.success('Trip is now private');
+      
+      // Refresh trip data
+      dispatch(fetchTrip(tripId));
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to make trip private');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const copyShareUrl = async () => {
+    if (trip.publicUrl) {
+      const url = `${window.location.origin}/public-itinerary/${trip.publicUrl}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Share URL copied to clipboard!');
+      } catch (error) {
+        toast.error('Failed to copy URL');
+      }
+    }
   };
 
   if (loading) {
@@ -102,10 +151,47 @@ const TripDetail = () => {
           </div>
         </div>
         <div className="flex space-x-2">
-          <button className="btn-secondary inline-flex items-center">
-            <Share className="h-4 w-4 mr-2" />
-            Share
-          </button>
+          {/* Share Button - Different based on public status */}
+          {trip.isPublic ? (
+            <div className="flex space-x-2">
+              <button
+                onClick={copyShareUrl}
+                className="btn-secondary inline-flex items-center"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Link
+              </button>
+              <button
+                onClick={handleMakePrivate}
+                disabled={sharing}
+                className="btn-secondary inline-flex items-center text-red-600 hover:text-red-700"
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                {sharing ? 'Making Private...' : 'Make Private'}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleMakePublic}
+              disabled={sharing}
+              className="btn-secondary inline-flex items-center"
+            >
+              <Globe className="h-4 w-4 mr-2" />
+              {sharing ? 'Sharing...' : 'Make Public'}
+            </button>
+          )}
+          
+          {trip.publicUrl && (
+            <Link
+              to={`/public-itinerary/${trip.publicUrl}`}
+              className="btn-secondary inline-flex items-center"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Public View
+            </Link>
+          )}
           <Link
             to={`/trips/${tripId}/calendar`}
             className="btn-secondary inline-flex items-center"
